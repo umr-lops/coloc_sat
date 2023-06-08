@@ -1,5 +1,7 @@
 import os
 import glob
+import xarray as xr
+from shapely import wkt
 
 
 def get_all_rs2_dirs_as_list(level=1):
@@ -33,3 +35,11 @@ def call_sar_meta(dataset_id):
     else:
         raise TypeError("Unknown dataset id type from %s" % str(dataset_id))
     return sar_meta
+
+
+def open_l2(product_path):
+    return xr.open_dataset(product_path)
+
+
+def convert_str_to_polygon(poly_str):
+    return wkt.loads(poly_str)
