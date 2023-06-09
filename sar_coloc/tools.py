@@ -43,3 +43,8 @@ def open_l2(product_path):
 
 def convert_str_to_polygon(poly_str):
     return wkt.loads(poly_str)
+
+
+def open_smos_file(product_path):
+    os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
+    return xr.open_dataset(product_path)
