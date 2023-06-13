@@ -29,14 +29,18 @@ def get_all_rs2_dirs_as_list(level=1):
     return files
 
 
-def get_all_comparison_files(root_path, db_name='SMOS'):
+def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
     """
     Return all existing product for a specific sensor (ex : SMOS)
 
     Parameters
     ----------
-    root_path: str
-        Root path os a specific sensor
+    root_paths: List[str]
+        Root paths of  specific sensors
+    start_date: numpy.datetime64
+        Start date for the research
+    stop_date: numpy.datetime64
+        Stop date for the research
     db_name: str
         Sensor name
 
@@ -45,10 +49,77 @@ def get_all_comparison_files(root_path, db_name='SMOS'):
     List[str]
         Path of all existing products
     """
+
+    def get_last_generation_files(files_list):
+        """
+        From a list of SMOS paths, return only the paths with the latest generation
+
+        Parameters
+        ----------
+        files_list: List[str]
+            List of SMOS paths
+
+        Returns
+        -------
+        List[str]
+            Latest generation SMOS paths
+
+        """
+        def extract_smos_sort_keys(string):
+            """
+            From a SMOS path, extract the orbit (Ascending or Descending), the date and the generation number. It is
+            used to sort a list of SMOS paths
+
+            Parameters
+            ----------
+            string: str
+                SMOS path
+
+            Returns
+            -------
+            (str, int, int)
+                Primary and secondary sort keys (orbit, date, generation number)
+            """
+            basename = os.path.basename(string)
+            key1 = basename.split('_')[-5]
+            key2 = int(basename.split('_')[-4])
+            key3 = int(basename.split('_')[-2])
+            return key1, key2, key3
+
+        final_files = []
+        sorted_files = sorted(files_list, key=extract_smos_sort_keys)
+        last_generation_file = sorted_files[0]
+        for index, file in enumerate(sorted_files):
+            # prefix is the same when only the generation is different
+            prefix = '_'.join(os.path.basename(file).split('_')[:-2])
+            if prefix == '_'.join(os.path.basename(last_generation_file).split('_')[:-2]):
+                # if the generation is greater, we increase the reference generation
+                if extract_smos_sort_keys(file)[2] >= extract_smos_sort_keys(last_generation_file)[2]:
+                    last_generation_file = file
+            else:
+                final_files.append(last_generation_file)
+                last_generation_file = file
+            # The last files isn't added when it is a new product, so we add it
+            if index == len(sorted_files) - 1:
+                final_files.append(file)
+        return final_files
+
     files = []
-    if db_name == 'SMOS':
-        files += [glob.glob(os.path.join(path, "*", "*", "*nc")) for path in root_path][0]
-    return files
+    schemes = date_schemes(start_date, stop_date)
+    for root_path in root_paths:
+        for scheme in schemes:
+            files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
+
+    return get_last_generation_files(files)
+
+
+def date_schemes(start_date, stop_date):
+    schemes = []
+    date = start_date
+    while date <= stop_date:
+        schemes.append(str(date.astype('datetime64[D]')).replace('-', ''))
+        date += np.timedelta64(1, 'D')
+    return schemes
 
 
 def call_sar_meta(dataset_id):
@@ -132,27 +203,3 @@ def open_smos_file(product_path):
     os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
     return xr.open_dataset(product_path)
 
-
-def date_diff(date, time):
-    """
-    Difference between 2 times : date - time.
-
-    Parameters
-    ----------
-    date: numpy.datetime64
-        Date on which we want to make a difference
-    time: int | np.datetime64
-        hour number to subtract from the date (if type is int).
-        Date to subtract from date (if type is np.datetime64)
-
-    Returns
-    -------
-    numpy.datetime64
-        Subtracted date
-    """
-    if isinstance(time, int):
-        return date - np.timedelta64(time, 'h')
-    elif isinstance(time, np.datetime64):
-        return date - time
-    else:
-        raise TypeError('Please us a numpy.datetime64 or an integer for the time argument')
