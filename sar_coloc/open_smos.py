@@ -1,6 +1,6 @@
 from shapely import Polygon
 
-from .tools import open_smos_file, convert_str_to_polygon
+from .tools import open_smos_file
 import os
 import numpy as np
 import xarray as xr
@@ -14,7 +14,7 @@ class OpenSmos:
         self.dataset = open_smos_file(product_path)
 
     @property
-    def time_start(self):
+    def start_date(self):
         """
         Start acquisition time
 
@@ -26,7 +26,7 @@ class OpenSmos:
         return min(np.unique(self.times.squeeze()))
 
     @property
-    def time_stop(self):
+    def stop_date(self):
         """
         Stop acquisition time
 
@@ -37,16 +37,16 @@ class OpenSmos:
         """
         return max(np.unique(self.times.squeeze()))
 
-    def footprint(self, time_start=None, time_stop=None):
+    def footprint(self, start_date=None, stop_date=None):
         """
         Get the footprint between 2 times. If no one specified, get the footprint between the start and stop
         acquisition times
 
         Parameters
         ----------
-        time_start: numpy.datetime64 | None
+        start_date: numpy.datetime64 | None
             Start time for the footprint
-        time_stop: numpy.datetime64 | None
+        stop_date: numpy.datetime64 | None
             Stop time for the footprint
 
         Returns
@@ -55,7 +55,7 @@ class OpenSmos:
             Resulting footprint
         """
         entire_poly = Polygon()
-        times = self.extract_times(time_start, time_stop)
+        times = self.extract_times(start_date, stop_date)
         # if the footprint cross the meridian, we split the footprint in 2 ones
         if any(times.lon < 0):
             conditions = [
@@ -96,28 +96,26 @@ class OpenSmos:
             times['lon'] = times.lon % 360
         return times.assign_coords({'lon': xr.where(times.lon > 180, times.lon - 360, times.lon)})
 
-    def extract_times(self, time_start=None, time_stop=None):
+    def extract_times(self, start_date=None, stop_date=None):
         """
         Extract a sub-dataset from `OpenSmos.times` to get a time dataset within 2 bounds (dates). If one of th bound
-        exceeds the acquisiton extremum times, so the acquisition Start and/ or Stop dates are chosen.
+        exceeds the acquisition extremum times, so the acquisition Start and/ or Stop dates are chosen.
         Parameters
         ----------
-        time_start: numpy.datetime64 | None
+        start_date: numpy.datetime64 | None
             Start chosen date.
-        time_stop: numpy.datetime64 | None
+        stop_date: numpy.datetime64 | None
             End chosen date.
 
         Returns
         -------
         xarray.Dataset
-            Contains a sub-dataset of `OpenSmos.times` (between `time_start` and `time_stop`).
+            Contains a sub-dataset of `OpenSmos.times` (between `start_date` and `stop_date`).
         """
-        if time_start is None:
-            time_start = self.time_start
-        if time_stop is None:
-            time_stop = self.time_stop
-        if (time_start >= self.time_start) or (time_stop <= self.time_stop):
-            return self.times.where(lambda arr: (arr >= time_start) & (arr <= time_stop), drop=True)
-        else:
-            return None
+        if start_date is None:
+            start_date = self.start_date
+        if stop_date is None:
+            stop_date = self.stop_date
+        return self.times.where(lambda arr: (arr >= start_date) & (arr <= stop_date), drop=True)
+
 
