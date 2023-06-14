@@ -17,6 +17,8 @@ class SarColoc:
         self.comparison_files = []
         self.comparison_files += get_all_comparison_files(roots[db_name], self.start_date, self.stop_date,
                                                           db_name=self.db_name)
+        self.common_footprints = None
+        self.fill_footprints()
 
     @property
     def start_date(self):
@@ -26,8 +28,7 @@ class SarColoc:
     def stop_date(self):
         return self.sar.stop_date + np.timedelta64(self.delta_time, 'h')
 
-    @property
-    def footprints(self):
+    def fill_footprints(self):
         _footprints = {}
         for file in self.comparison_files:
             opened_file = OpenSmos(file)
@@ -37,10 +38,16 @@ class SarColoc:
             else:
                 _footprints[file] = None
         if all(value is None for value in _footprints.values()):
-            return None
+            pass
         else:
-            return _footprints
+            self.common_footprints = _footprints
 
+    @property
+    def has_coloc(self):
+        if self.common_footprints is None:
+            return False
+        else:
+            return True
 
 
 
