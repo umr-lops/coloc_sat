@@ -29,6 +29,20 @@ def get_all_rs2_dirs_as_list(level=1):
     return files
 
 
+def get_acquisition_root_paths(db_name):
+    roots = {
+        'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
+                 '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
+    }
+    return roots[db_name]
+
+
+def call_open_class(file, db_name):
+    if db_name == 'SMOS':
+        from .open_smos import OpenSmos
+        return OpenSmos(file)
+
+
 def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
     """
     Return all existing product for a specific sensor (ex : SMOS)
@@ -164,7 +178,16 @@ def open_l2(product_path):
     xarray.Dataset
         Level 2 SAR product
     """
-    return xr.open_dataset(product_path)
+    if os.path.isdir(product_path):
+        nc_product = glob.glob(os.path.join(product_path, 'rs2*.nc'))
+        if len(nc_product) > 1:
+            raise ValueError(f"Many netcdf files can be read for ths product, please select an only one in the\
+             following list : {nc_product}")
+        else:
+            nc_product = nc_product[0]
+    else:
+        nc_product = product_path
+    return xr.open_dataset(nc_product)
 
 
 def convert_str_to_polygon(poly_str):
