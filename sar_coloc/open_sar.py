@@ -1,5 +1,5 @@
 import os
-from .tools import call_sar_meta, open_l2, convert_str_to_polygon
+from .tools import call_sar_meta, open_l2, convert_str_to_polygon, extract_start_stop_dates_from_l2
 from shapely.geometry import Polygon
 import numpy as np
 
@@ -171,7 +171,8 @@ class OpenSar:
             start_dates = [np.datetime64(value['start_date']) for value in self._l1_info['times'].values()]
             return min(start_dates)
         else:
-            return np.datetime64(self._l2_info.attrs['firstMeasurementTime'])
+            #return np.datetime64(self._l2_info.attrs['firstMeasurementTime'])
+            return extract_start_stop_dates_from_l2(self.product_path)[0]
 
     @property
     def stop_date(self):
@@ -187,7 +188,8 @@ class OpenSar:
             stop_dates = [np.datetime64(value['stop_date']) for value in self._l1_info['times'].values()]
             return min(stop_dates)
         else:
-            return np.datetime64(self._l2_info.attrs['lastMeasurementTime'])
+            #return np.datetime64(self._l2_info.attrs['lastMeasurementTime'])
+            return extract_start_stop_dates_from_l2(self.product_path)[0]
 
     @property
     def is_safe(self):
