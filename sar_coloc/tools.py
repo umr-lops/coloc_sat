@@ -3,6 +3,7 @@ import glob
 import xarray as xr
 from shapely import wkt
 import numpy as np
+import datetime
 
 
 def get_all_rs2_dirs_as_list(level=1):
@@ -33,6 +34,7 @@ def get_acquisition_root_paths(db_name):
     roots = {
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
+        'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2/hy-2b/hscat/25km/data/netcdf']
     }
     return roots[db_name]
 
@@ -120,11 +122,17 @@ def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
 
     files = []
     schemes = date_schemes(start_date, stop_date)
-    for root_path in root_paths:
-        for scheme in schemes:
-            files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
+    if db_name == 'SMOS':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
 
-    return get_last_generation_files(files)
+        return get_last_generation_files(files)
+    elif db_name == 'HY':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
+        return files
 
 
 def date_schemes(start_date, stop_date):
@@ -134,6 +142,18 @@ def date_schemes(start_date, stop_date):
         schemes.append(str(date.astype('datetime64[D]')).replace('-', ''))
         date += np.timedelta64(1, 'D')
     return schemes
+
+
+def extract_start_stop_dates_from_l2(product_path):
+    nc_path = find_l2_nc(product_path)
+    nc_basename = os.path.basename(nc_path)
+    start_date_str = nc_basename.split('-')[4].replace('t', '')
+    start_date_str = f"{start_date_str[0:4]}-{start_date_str[4:6]}-{start_date_str[6:8]}T{start_date_str[8:10]}:" + \
+                     f"{start_date_str[10:12]}:{start_date_str[12:16]}"
+    stop_date_str = nc_basename.split('-')[5].replace('t', '')
+    stop_date_str = f"{stop_date_str[0:4]}-{stop_date_str[4:6]}-{stop_date_str[6:8]}T{stop_date_str[8:10]}:" + \
+                    f"{stop_date_str[10:12]}:{stop_date_str[12:16]}"
+    return np.datetime64(start_date_str), np.datetime64(stop_date_str)
 
 
 def call_sar_meta(dataset_id):
@@ -164,6 +184,19 @@ def call_sar_meta(dataset_id):
     return sar_meta
 
 
+def find_l2_nc(product_path):
+    if os.path.isdir(product_path):
+        nc_product = glob.glob(os.path.join(product_path, 'rs2*.nc'))
+        if len(nc_product) > 1:
+            raise ValueError(f"Many netcdf files can be read for this product, please select an only one in the " +
+                             f"following list : {nc_product}")
+        else:
+            nc_product = nc_product[0]
+    else:
+        nc_product = product_path
+    return nc_product
+
+
 def open_l2(product_path):
     """
     Open a SAR level 2 product as a dataset
@@ -178,15 +211,7 @@ def open_l2(product_path):
     xarray.Dataset
         Level 2 SAR product
     """
-    if os.path.isdir(product_path):
-        nc_product = glob.glob(os.path.join(product_path, 'rs2*.nc'))
-        if len(nc_product) > 1:
-            raise ValueError(f"Many netcdf files can be read for ths product, please select an only one in the\
-             following list : {nc_product}")
-        else:
-            nc_product = nc_product[0]
-    else:
-        nc_product = product_path
+    nc_product = find_l2_nc(product_path)
     return xr.open_dataset(nc_product)
 
 
@@ -206,6 +231,23 @@ def convert_str_to_polygon(poly_str):
         Polygon
     """
     return wkt.loads(poly_str)
+
+
+def open_nc(product_path):
+    """
+    Open a netcdf file using `xarray.open_dataset`
+
+    Parameters
+    ----------
+    product_path: str
+        Absolute path to the netcdf
+
+    Returns
+    -------
+    xarray.Dataset
+        netcdf content
+    """
+    return xr.open_dataset(product_path)
 
 
 def open_smos_file(product_path):
