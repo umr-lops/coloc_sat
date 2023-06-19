@@ -6,12 +6,11 @@ import numpy as np
 
 class SarColoc:
     def __init__(self, sar_id, db_name='SMOS', delta_time=3):
-        roots = get_acquisition_root_paths(db_name)
         self.db_name = db_name
         self.sar = OpenSar(sar_id)
         self.delta_time = delta_time
         self.comparison_files = []
-        self.comparison_files += get_all_comparison_files(roots, self.start_date, self.stop_date,
+        self.comparison_files += get_all_comparison_files(self.start_date, self.stop_date,
                                                           db_name=self.db_name)
         self.common_footprints = None
         self.fill_footprints()
@@ -28,7 +27,6 @@ class SarColoc:
         _footprints = {}
         for file in self.comparison_files:
             opened_file = call_open_class(file, self.db_name)
-            print(self.comparison_files)
             if self.sar.footprint.intersects(opened_file.footprint(self.sar.footprint, self.start_date, self.stop_date)):
                 _footprints[file] = self.sar.footprint\
                     .intersection(opened_file.footprint(self.sar.footprint, self.start_date, self.stop_date))
