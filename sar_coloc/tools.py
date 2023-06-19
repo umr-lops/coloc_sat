@@ -3,7 +3,7 @@ import glob
 import xarray as xr
 from shapely import wkt
 import numpy as np
-import datetime
+import fsspec
 
 
 def get_all_rs2_dirs_as_list(level=1):
@@ -123,15 +123,22 @@ def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
     files = []
     schemes = date_schemes(start_date, stop_date)
     if db_name == 'SMOS':
+        # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
 
         return get_last_generation_files(files)
     elif db_name == 'HY':
+        # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
+        # remove files for which hour doesn't correspond to the selected times
+        for f in files:
+            start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
+            if (stop_hy < stop_date) or (start_hy > stop_date):
+                files.remove(f)
         return files
 
 
@@ -142,6 +149,12 @@ def date_schemes(start_date, stop_date):
         schemes.append(str(date.astype('datetime64[D]')).replace('-', ''))
         date += np.timedelta64(1, 'D')
     return schemes
+
+
+def extract_start_stop_dates_from_hy(product_path):
+    ds = open_nc(product_path)
+    unique_time = np.unique(ds.time)
+    return min(unique_time), max(unique_time)
 
 
 def extract_start_stop_dates_from_l2(product_path):
@@ -212,7 +225,8 @@ def open_l2(product_path):
         Level 2 SAR product
     """
     nc_product = find_l2_nc(product_path)
-    return xr.open_dataset(nc_product)
+    fs = fsspec.filesystem("file")
+    return xr.open_dataset(fs.open(nc_product), engine='h5netcdf')
 
 
 def convert_str_to_polygon(poly_str):
@@ -247,7 +261,8 @@ def open_nc(product_path):
     xarray.Dataset
         netcdf content
     """
-    return xr.open_dataset(product_path)
+    fs = fsspec.filesystem("file")
+    return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
 
 
 def open_smos_file(product_path):
@@ -264,7 +279,6 @@ def open_smos_file(product_path):
     xarray.Dataset
         Smos product
     """
-    # Export an env var
-    os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
-    return xr.open_dataset(product_path)
+    fs = fsspec.filesystem("file")
+    return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
 
