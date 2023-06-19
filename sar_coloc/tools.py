@@ -45,14 +45,12 @@ def call_open_class(file, db_name):
         return OpenSmos(file)
 
 
-def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
+def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
     """
     Return all existing product for a specific sensor (ex : SMOS)
 
     Parameters
     ----------
-    root_paths: List[str]
-        Root paths of  specific sensors
     start_date: numpy.datetime64
         Start date for the research
     stop_date: numpy.datetime64
@@ -120,6 +118,7 @@ def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
                 final_files.append(file)
         return final_files
 
+    root_paths = get_acquisition_root_paths(db_name)
     files = []
     schemes = date_schemes(start_date, stop_date)
     if db_name == 'SMOS':
@@ -140,6 +139,34 @@ def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
             if (stop_hy < start_date) or (start_hy > stop_date):
                 files.remove(f)
         return files
+
+
+def cross_antemeridian(dataset):
+    """True if footprint cross antemeridian"""
+    return ((np.max(dataset.lon) - np.min(
+        dataset.lon)) > 180).item()
+
+
+def corrected_dataset(dataset):
+    """
+    Get acquisition dataset depending on latitude and longitude. Apply correction if needed when it crosses antemeridian.
+    Longitude values are ranging between -180 and 180 degrees.
+
+    Parameters
+    ----------
+    dataset: xarray.Dataset
+        Acquisition dataset
+
+    Returns
+    -------
+    xarray.Dataset
+        Acquisition dataset depending on longitude and latitude.
+    """
+    lon = dataset.lon
+    if cross_antemeridian(dataset):
+        lon = (lon + 180) % 360
+    dataset = dataset.assign_coords(lon=lon - 180).sortby('lon')
+    return dataset
 
 
 def date_schemes(start_date, stop_date):
