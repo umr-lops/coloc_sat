@@ -95,10 +95,10 @@ class OpenSmos:
             Acquisition dataset depending on longitude and latitude.
         """
         dataset = self.dataset
-        """if self.cross_antemeridian(dataset):
-            dataset['lon'] = dataset.lon % 360
-        return dataset.assign_coords({'lon': xr.where(dataset.lon > 180, dataset.lon - 360, dataset.lon)})"""
-        dataset = dataset.assign_coords(lon=(((dataset.lon + 180) % 360) - 180)).sortby('lon')
+        lon = dataset.lon
+        if self.cross_antemeridian(dataset):
+            lon = (lon + 180) % 360
+        dataset = dataset.assign_coords(lon=lon - 180).sortby('lon')
         return dataset
 
     def rasterize_polygon(self, polygon):
