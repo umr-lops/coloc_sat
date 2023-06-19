@@ -137,7 +137,7 @@ def get_all_comparison_files(root_paths, start_date, stop_date, db_name='SMOS'):
         # remove files for which hour doesn't correspond to the selected times
         for f in files:
             start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
-            if (stop_hy < stop_date) or (start_hy > stop_date):
+            if (stop_hy < start_date) or (start_hy > stop_date):
                 files.remove(f)
         return files
 
