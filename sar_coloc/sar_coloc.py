@@ -28,9 +28,10 @@ class SarColoc:
         _footprints = {}
         for file in self.comparison_files:
             opened_file = call_open_class(file, self.db_name)
-            if self.sar.footprint.intersects(opened_file.footprint(self.start_date, self.stop_date)):
+            print(self.comparison_files)
+            if self.sar.footprint.intersects(opened_file.footprint(self.sar.footprint, self.start_date, self.stop_date)):
                 _footprints[file] = self.sar.footprint\
-                    .intersection(opened_file.footprint(self.start_date, self.stop_date))
+                    .intersection(opened_file.footprint(self.sar.footprint, self.start_date, self.stop_date))
             else:
                 _footprints[file] = None
         if all(value is None for value in _footprints.values()):
