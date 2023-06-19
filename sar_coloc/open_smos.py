@@ -1,7 +1,7 @@
 import rasterio
 from shapely import Polygon
 
-from .tools import open_smos_file
+from .tools import open_smos_file, corrected_dataset
 import os
 import numpy as np
 from shapely.geometry import MultiPoint
@@ -78,44 +78,22 @@ class OpenSmos:
             entire_poly = mpt.convex_hull
         return entire_poly
 
-    def cross_antemeridian(self, dataset):
-        """True if footprint cross antemeridian"""
-        return ((np.max(dataset.lon) - np.min(
-            dataset.lon)) > 180).item()
-
-    @property
-    def corrected_dataset(self):
-        """
-        Get acquisition dataset depending on latitude and longitude. Apply correction if needed when it crosses antemeridian.
-        Longitude values are ranging between -180 and 180 degrees.
-
-        Returns
-        -------
-        xarray.Dataset
-            Acquisition dataset depending on longitude and latitude.
-        """
-        dataset = self.dataset
-        lon = dataset.lon
-        if self.cross_antemeridian(dataset):
-            lon = (lon + 180) % 360
-        dataset = dataset.assign_coords(lon=lon - 180).sortby('lon')
-        return dataset
-
     def rasterize_polygon(self, polygon):
-        min_bounds = (min(np.unique(self.corrected_dataset.lon)), min(np.unique(self.corrected_dataset.lat)))
-        lon_res = float(self.corrected_dataset.attrs['geospatial_lon_resolution'])
-        lat_res = float(self.corrected_dataset.attrs['geospatial_lat_resolution'])
-        out_shape = [len(self.corrected_dataset.lat), len(self.corrected_dataset.lon)]
+        min_bounds = (min(np.unique(corrected_dataset(self.dataset).lon)),
+                      min(np.unique(corrected_dataset(self.dataset).lat)))
+        lon_res = float(corrected_dataset(self.dataset).attrs['geospatial_lon_resolution'])
+        lat_res = float(corrected_dataset(self.dataset).attrs['geospatial_lat_resolution'])
+        out_shape = [len(corrected_dataset(self.dataset).lat), len(corrected_dataset(self.dataset).lon)]
         transform = rasterio.Affine.translation(min_bounds[0], min_bounds[1]) * rasterio.Affine.scale(lon_res, lat_res)
         return rasterio.features.rasterize(shapes=[polygon], out_shape=out_shape, transform=transform)
 
     def geographic_intersection(self, sar_polygon=None):
         if sar_polygon is None:
-            return self.corrected_dataset
+            return corrected_dataset(self.dataset)
         else:
             rasterized = self.rasterize_polygon(sar_polygon)
 
-            ds = self.corrected_dataset.where(rasterized)
+            ds = corrected_dataset(self.dataset).where(rasterized)
 
             ds = ds.dropna('lon', how='all')
             ds = ds.dropna('lat', how='all')
