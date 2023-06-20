@@ -4,6 +4,17 @@ import xarray as xr
 from shapely import wkt
 import numpy as np
 import fsspec
+import itertools
+
+
+def unique(iterable):
+    return list(dict.fromkeys(iterable))
+
+
+def determine_dims(coords):
+    all_dims = [coord.dims for coord in coords.variables.values()]
+
+    return unique(itertools.chain.from_iterable(all_dims))
 
 
 def get_all_rs2_dirs_as_list(level=1):
@@ -34,7 +45,7 @@ def get_acquisition_root_paths(db_name):
     roots = {
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
-        'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2/hy-2b/hscat/25km/data/netcdf']
+        'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data']
     }
     return roots[db_name]
 
@@ -43,6 +54,9 @@ def call_open_class(file, db_name):
     if db_name == 'SMOS':
         from .open_smos import OpenSmos
         return OpenSmos(file)
+    elif db_name == 'HY':
+        from .open_hy import OpenHy
+        return OpenHy(file)
 
 
 def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
@@ -134,7 +148,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
         # remove files for which hour doesn't correspond to the selected times
-        for f in files:
+        for f in files.copy():
             start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
             if (stop_hy < start_date) or (start_hy > stop_date):
                 files.remove(f)
@@ -147,7 +161,7 @@ def cross_antemeridian(dataset):
         dataset.lon)) > 180).item()
 
 
-def corrected_dataset(dataset):
+def correct_dataset(dataset):
     """
     Get acquisition dataset depending on latitude and longitude. Apply correction if needed when it crosses antemeridian.
     Longitude values are ranging between -180 and 180 degrees.
@@ -165,7 +179,9 @@ def corrected_dataset(dataset):
     lon = dataset.lon
     if cross_antemeridian(dataset):
         lon = (lon + 180) % 360
-    dataset = dataset.assign_coords(lon=lon - 180).sortby('lon')
+    dataset = dataset.assign_coords(lon=lon - 180)
+    if dataset.lon.ndim == 1:
+        dataset = dataset.sortby("lon")
     return dataset
 
 
@@ -289,7 +305,7 @@ def open_nc(product_path):
         netcdf content
     """
     fs = fsspec.filesystem("file")
-    return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
+    return xr.open_dataset(fs.open(product_path))
 
 
 def open_smos_file(product_path):
