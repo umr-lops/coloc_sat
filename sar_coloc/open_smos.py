@@ -1,7 +1,7 @@
 import rasterio
 from shapely import Polygon
 
-from .tools import open_smos_file, corrected_dataset
+from .tools import open_smos_file, correct_dataset, determine_dims
 import os
 import numpy as np
 from shapely.geometry import MultiPoint
@@ -15,7 +15,7 @@ class OpenSmos:
     def __init__(self, product_path):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
-        self.dataset = open_smos_file(product_path).squeeze()
+        self.dataset = open_smos_file(product_path).squeeze().load()
 
     @property
     def start_date(self):
@@ -41,13 +41,15 @@ class OpenSmos:
         """
         return max(np.unique(self.dataset.measurement_time))
 
-    def footprint(self, sar_polygon, start_date=None, stop_date=None):
+    def footprint(self, polygon, start_date=None, stop_date=None):
         """
         Get the footprint between 2 times. If no one specified, get the footprint between the start and stop
         acquisition times
 
         Parameters
         ----------
+        polygon : shapely.geometry.polygon.Polygon
+            Footprint of the other acquisition we want to compare
         start_date: numpy.datetime64 | None
             Start time for the footprint
         stop_date: numpy.datetime64 | None
@@ -55,11 +57,11 @@ class OpenSmos:
 
         Returns
         -------
-        shapely.geometry.polygon.Polygon
+        shapely.geometry.polygon.Polygon | None
             Resulting footprint
         """
         entire_poly = Polygon()
-        cropped_ds = self.spatial_geographic_intersection(sar_polygon, start_date, stop_date)
+        cropped_ds = self.spatial_geographic_intersection(polygon, start_date, stop_date)
         wind = extract_wind_speed(cropped_ds)
         # if the footprint cross the meridian, we split the footprint in 2 ones
         if any(wind.lon < 0):
@@ -69,38 +71,38 @@ class OpenSmos:
             ]
             for condition in conditions:
                 conditioned_wind = wind.where(condition, drop=True)
-                stacked_wind = conditioned_wind.stack({"cells": ["lon", "lat"]}).dropna(dim="cells")
+                stacked_wind = conditioned_wind.stack({"cells": determine_dims(conditioned_wind[["lon", "lat"]])})\
+                    .dropna(dim="cells")
                 mpt = MultiPoint(stacked_wind.cells.data)
                 entire_poly = entire_poly.union(mpt.convex_hull)
         else:
-            stacked_wind = wind.stack({"cells": ["lon", "lat"]}).dropna(dim="cells")
+            stacked_wind = wind.stack({"cells": determine_dims(wind[["lon", "lat"]])}).dropna(dim="cells")
             mpt = MultiPoint(stacked_wind.cells.data)
             entire_poly = mpt.convex_hull
         return entire_poly
 
     def rasterize_polygon(self, polygon):
-        min_bounds = (min(np.unique(corrected_dataset(self.dataset).lon)),
-                      min(np.unique(corrected_dataset(self.dataset).lat)))
-        lon_res = float(corrected_dataset(self.dataset).attrs['geospatial_lon_resolution'])
-        lat_res = float(corrected_dataset(self.dataset).attrs['geospatial_lat_resolution'])
-        out_shape = [len(corrected_dataset(self.dataset).lat), len(corrected_dataset(self.dataset).lon)]
+        min_bounds = (min(np.unique(correct_dataset(self.dataset).lon)),
+                      min(np.unique(correct_dataset(self.dataset).lat)))
+        lon_res = float(correct_dataset(self.dataset).attrs['geospatial_lon_resolution'])
+        lat_res = float(correct_dataset(self.dataset).attrs['geospatial_lat_resolution'])
+        out_shape = [len(correct_dataset(self.dataset).lat), len(correct_dataset(self.dataset).lon)]
         transform = rasterio.Affine.translation(min_bounds[0], min_bounds[1]) * rasterio.Affine.scale(lon_res, lat_res)
         return rasterio.features.rasterize(shapes=[polygon], out_shape=out_shape, transform=transform)
 
-    def geographic_intersection(self, sar_polygon=None):
-        if sar_polygon is None:
-            return corrected_dataset(self.dataset)
+    def geographic_intersection(self, polygon=None):
+        if polygon is None:
+            return correct_dataset(self.dataset)
         else:
-            rasterized = self.rasterize_polygon(sar_polygon)
-
-            ds = corrected_dataset(self.dataset).where(rasterized)
+            rasterized = self.rasterize_polygon(polygon)
+            ds = correct_dataset(self.dataset).where(rasterized)
 
             ds = ds.dropna('lon', how='all')
             ds = ds.dropna('lat', how='all')
             return ds
 
-    def spatial_geographic_intersection(self, sar_polygon=None, start_date=None, stop_date=None):
-        ds = self.geographic_intersection(sar_polygon)
+    def spatial_geographic_intersection(self, polygon=None, start_date=None, stop_date=None):
+        ds = self.geographic_intersection(polygon)
         ds = self.extract_times_dataset(ds, start_date, stop_date)
         return ds
 
@@ -117,13 +119,14 @@ class OpenSmos:
 
         Returns
         -------
-        xarray.Dataset
+        xarray.Dataset | None
             Contains a sub-dataset of `OpenSmos.times` (between `start_date` and `stop_date`).
         """
+        if smos_dataset is None:
+            return smos_dataset
         if start_date is None:
             start_date = self.start_date
         if stop_date is None:
             stop_date = self.stop_date
-        extracted_ds = smos_dataset.where((smos_dataset.measurement_time >= start_date) &
-                                          (smos_dataset.measurement_time <= stop_date), drop=True)
-        return extracted_ds
+        return smos_dataset.where((smos_dataset.measurement_time >= start_date) &
+                                  (smos_dataset.measurement_time <= stop_date), drop=True)
