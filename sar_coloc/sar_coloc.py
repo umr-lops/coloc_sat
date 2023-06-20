@@ -1,5 +1,5 @@
 """Main module."""
-from .tools import get_all_comparison_files, get_acquisition_root_paths, call_open_class
+from .tools import get_all_comparison_files, call_open_class
 from .open_sar import OpenSar
 import numpy as np
 
@@ -9,9 +9,7 @@ class SarColoc:
         self.db_name = db_name
         self.sar = OpenSar(sar_id)
         self.delta_time = delta_time
-        self.comparison_files = []
-        self.comparison_files += get_all_comparison_files(self.start_date, self.stop_date,
-                                                          db_name=self.db_name)
+        self.comparison_files = get_all_comparison_files(self.start_date, self.stop_date, db_name=self.db_name)
         self.common_footprints = None
         self.fill_footprints()
 
@@ -27,11 +25,13 @@ class SarColoc:
         _footprints = {}
         for file in self.comparison_files:
             opened_file = call_open_class(file, self.db_name)
-            if self.sar.footprint.intersects(opened_file.footprint(self.sar.footprint, self.start_date, self.stop_date)):
-                _footprints[file] = self.sar.footprint\
+            if self.sar.footprint.intersects(
+                    opened_file.footprint(self.sar.footprint, self.start_date, self.stop_date)):
+                _footprints[file] = self.sar.footprint \
                     .intersection(opened_file.footprint(self.sar.footprint, self.start_date, self.stop_date))
             else:
                 _footprints[file] = None
+        # if no common values, let the footprint with the value None
         if all(value is None for value in _footprints.values()):
             pass
         else:
@@ -43,6 +43,3 @@ class SarColoc:
             return False
         else:
             return True
-
-
-
