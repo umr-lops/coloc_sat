@@ -5,7 +5,7 @@ import numpy as np
 
 
 class SarColoc:
-    def __init__(self, sar_id, db_name='SMOS', delta_time=3):
+    def __init__(self, sar_id, db_name='SMOS', delta_time=60):
         self.db_name = db_name
         self.sar = OpenSar(sar_id)
         self.delta_time = delta_time
@@ -15,11 +15,11 @@ class SarColoc:
 
     @property
     def start_date(self):
-        return self.sar.start_date - np.timedelta64(self.delta_time, 'h')
+        return self.sar.start_date - np.timedelta64(self.delta_time, 'm')
 
     @property
     def stop_date(self):
-        return self.sar.stop_date + np.timedelta64(self.delta_time, 'h')
+        return self.sar.stop_date + np.timedelta64(self.delta_time, 'm')
 
     def fill_footprints(self):
         _footprints = {}
