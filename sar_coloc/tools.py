@@ -45,7 +45,8 @@ def get_acquisition_root_paths(db_name):
     roots = {
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
-        'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data']
+        'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
+        'ERA': ['/dataref/ecmwf/intranet/ERA5/']
     }
     return roots[db_name]
 
@@ -57,6 +58,9 @@ def call_open_class(file, db_name):
     elif db_name == 'HY':
         from .open_hy import OpenHy
         return OpenHy(file)
+    elif db_name == 'ERA':
+        from .open_era import OpenEra
+        return OpenEra(file)
 
 
 def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
@@ -161,7 +165,7 @@ def cross_antemeridian(dataset):
         dataset.lon)) > 180).item()
 
 
-def correct_dataset(dataset):
+def correct_dataset(dataset, lon_name='lon'):
     """
     Get acquisition dataset depending on latitude and longitude. Apply correction if needed when it crosses antemeridian.
     Longitude values are ranging between -180 and 180 degrees.
@@ -170,18 +174,26 @@ def correct_dataset(dataset):
     ----------
     dataset: xarray.Dataset
         Acquisition dataset
+    lon_name: str
+        name of the longitude dimension in the dataset. `lon` by default.
 
     Returns
     -------
     xarray.Dataset
         Acquisition dataset depending on longitude and latitude.
     """
-    lon = dataset.lon
+
+    def cross_antemeridian(ds):
+        """True if footprint cross antemeridian"""
+        return ((np.max(ds[lon_name]) - np.min(
+            ds[lon_name])) > 180).item()
+
+    lon = dataset[lon_name]
     if cross_antemeridian(dataset):
         lon = (lon + 180) % 360
-    dataset = dataset.assign_coords(lon=lon - 180)
-    if dataset.lon.ndim == 1:
-        dataset = dataset.sortby("lon")
+    dataset = dataset.assign_coords(**{lon_name: lon - 180})
+    if dataset[lon_name].ndim == 1:
+        dataset = dataset.sortby(lon_name)
     return dataset
 
 
