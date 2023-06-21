@@ -1,4 +1,4 @@
-from shapely import Polygon
+from shapely import MultiPoint
 
 from .tools import open_nc, correct_dataset
 import os
@@ -7,7 +7,7 @@ import geopandas as gpd
 
 
 def extract_wind_speed(smos_dataset):
-    return smos_dataset.where(~np.isnan(smos_dataset.wind_speed), drop=True)
+    return smos_dataset.where(np.isfinite(smos_dataset.wind_speed) & (np.isfinite(smos_dataset.wind_dir)), drop=True)
 
 
 class OpenHy:
@@ -53,6 +53,7 @@ class OpenHy:
     def spatial_geographic_intersection(self, polygon=None, start_date=None, stop_date=None):
         ds = self.geographic_intersection(polygon)
         ds = self.extract_times_dataset(ds, start_date, stop_date)
+        ds = extract_wind_speed(ds)
         return ds
 
     def geographic_intersection(self, polygon):
@@ -104,34 +105,11 @@ class OpenHy:
         shapely.geometry.polygon.Polygon | None
             Resulting footprint
         """
-        #entire_poly = Polygon()
         cropped_ds = self.spatial_geographic_intersection(polygon, start_date, stop_date)
-        wind = extract_wind_speed(cropped_ds)
-        """# if the footprint cross the meridian, we split the footprint in 2 ones
-        if any(wind.lon < 0):
-            conditions = [
-                wind.lon < 0,
-                wind.lon >= 0
-            ]
-            for condition in conditions:
-                conditioned_wind = wind.where(condition, drop=True)
-                stacked_wind = conditioned_wind.stack({"cells": determine_dims(conditioned_wind[["lon", "lat"]])})\
-                    .dropna(dim="cells")
-                mpt = MultiPoint(stacked_wind.cells.data)
-                entire_poly = entire_poly.union(mpt.convex_hull)
-        else:
-            stacked_wind = wind.stack({"cells": determine_dims(wind[["lon", "lat"]])}).dropna(dim="cells")
-            mpt = MultiPoint(stacked_wind.cells.data)
-            entire_poly = mpt.convex_hull
-            return entire_poly
-        """
-        footprint_dict = {}
-        for ll in ['lon', 'lat']:
-            footprint_dict[ll] = [
-                wind[ll].isel(NUMROWS=a, NUMCELLS=x).values for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
-            ]
-        corners = list(zip(footprint_dict['lon'], footprint_dict['lat']))
-        return Polygon(corners)
+        flatten_lon = cropped_ds.lon.values.flatten()
+        flatten_lat = cropped_ds.lat.values.flatten()
+        mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)])
+        return mpt.convex_hull
 
 
 
