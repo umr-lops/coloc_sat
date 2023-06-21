@@ -62,21 +62,20 @@ class OpenSmos:
         """
         entire_poly = Polygon()
         cropped_ds = self.spatial_geographic_intersection(polygon, start_date, stop_date)
-        wind = extract_wind_speed(cropped_ds)
         # if the footprint cross the meridian, we split the footprint in 2 ones
-        if any(wind.lon < 0):
+        if any(cropped_ds.lon < 0):
             conditions = [
-                wind.lon < 0,
-                wind.lon >= 0
+                cropped_ds.lon < 0,
+                cropped_ds.lon >= 0
             ]
             for condition in conditions:
-                conditioned_wind = wind.where(condition, drop=True)
+                conditioned_wind = cropped_ds.where(condition, drop=True)
                 stacked_wind = conditioned_wind.stack({"cells": determine_dims(conditioned_wind[["lon", "lat"]])})\
                     .dropna(dim="cells")
                 mpt = MultiPoint(stacked_wind.cells.data)
                 entire_poly = entire_poly.union(mpt.convex_hull)
         else:
-            stacked_wind = wind.stack({"cells": determine_dims(wind[["lon", "lat"]])}).dropna(dim="cells")
+            stacked_wind = cropped_ds.stack({"cells": determine_dims(cropped_ds[["lon", "lat"]])}).dropna(dim="cells")
             mpt = MultiPoint(stacked_wind.cells.data)
             entire_poly = mpt.convex_hull
         return entire_poly
@@ -104,6 +103,7 @@ class OpenSmos:
     def spatial_geographic_intersection(self, polygon=None, start_date=None, stop_date=None):
         ds = self.geographic_intersection(polygon)
         ds = self.extract_times_dataset(ds, start_date, stop_date)
+        ds = extract_wind_speed(ds)
         return ds
 
     def extract_times_dataset(self, smos_dataset, start_date=None, stop_date=None):
