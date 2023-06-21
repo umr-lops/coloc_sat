@@ -7,7 +7,8 @@ import geopandas as gpd
 
 
 def extract_wind_speed(smos_dataset):
-    return smos_dataset.where(np.isfinite(smos_dataset.wind_speed) & (np.isfinite(smos_dataset.wind_dir)), drop=True)
+    #return smos_dataset.where(np.isfinite(smos_dataset.wind_speed) & (np.isfinite(smos_dataset.wind_dir)), drop=True)
+    return smos_dataset.where((np.isfinite(smos_dataset.wind_dir)), drop=True)
 
 
 class OpenHy:
@@ -15,8 +16,6 @@ class OpenHy:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_nc(product_path).load()
-        self.lat = self.dataset.lat
-        self.lon = self.dataset.lon
         self.time = self.dataset.time
 
     @property
