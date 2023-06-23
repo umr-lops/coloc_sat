@@ -7,7 +7,6 @@ import geopandas as gpd
 
 
 def extract_wind_speed(smos_dataset):
-    #return smos_dataset.where(np.isfinite(smos_dataset.wind_speed) & (np.isfinite(smos_dataset.wind_dir)), drop=True)
     return smos_dataset.where((np.isfinite(smos_dataset.wind_dir)), drop=True)
 
 
@@ -16,6 +15,7 @@ class OpenHy:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_nc(product_path).load()
+        self.dataset = correct_dataset(self.dataset)
         self.time = self.dataset.time
 
     @property
@@ -68,7 +68,7 @@ class OpenHy:
                 Dataset of the scatterometer data within the SAR swath.
         """
 
-        ds_scat = correct_dataset(self.dataset)
+        ds_scat = self.dataset
         # Find the scatterometer points that are within the sar swath bounding box
         min_lon, min_lat, max_lon, max_lat = polygon.bounds
         condition = (ds_scat['lon'] > min_lon) & (ds_scat['lon'] < max_lon) & \
@@ -109,6 +109,19 @@ class OpenHy:
         flatten_lat = cropped_ds.lat.values.flatten()
         mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)])
         return mpt.convex_hull
+
+    @property
+    def acquisition_type(self):
+        """
+        Gives the acquisition type (swath, truncated_swath,daily_regular_grid, model_regular_grid)
+
+        Returns
+        -------
+        str
+            acquisition type
+
+        """
+        return 'swath'
 
 
 
