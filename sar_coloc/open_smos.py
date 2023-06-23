@@ -16,6 +16,7 @@ class OpenSmos:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_smos_file(product_path).squeeze().load()
+        self.dataset = correct_dataset(self.dataset)
 
     @property
     def start_date(self):
@@ -81,20 +82,20 @@ class OpenSmos:
         return entire_poly
 
     def rasterize_polygon(self, polygon):
-        min_bounds = (min(np.unique(correct_dataset(self.dataset).lon)),
-                      min(np.unique(correct_dataset(self.dataset).lat)))
-        lon_res = float(correct_dataset(self.dataset).attrs['geospatial_lon_resolution'])
-        lat_res = float(correct_dataset(self.dataset).attrs['geospatial_lat_resolution'])
-        out_shape = [len(correct_dataset(self.dataset).lat), len(correct_dataset(self.dataset).lon)]
+        min_bounds = (min(np.unique(self.dataset.lon)),
+                      min(np.unique(self.dataset.lat)))
+        lon_res = float(self.dataset.attrs['geospatial_lon_resolution'])
+        lat_res = float(self.dataset.attrs['geospatial_lat_resolution'])
+        out_shape = [len(self.dataset.lat), len(self.dataset.lon)]
         transform = rasterio.Affine.translation(min_bounds[0], min_bounds[1]) * rasterio.Affine.scale(lon_res, lat_res)
         return rasterio.features.rasterize(shapes=[polygon], out_shape=out_shape, transform=transform)
 
     def geographic_intersection(self, polygon=None):
         if polygon is None:
-            return correct_dataset(self.dataset)
+            return self.dataset
         else:
             rasterized = self.rasterize_polygon(polygon)
-            ds = correct_dataset(self.dataset).where(rasterized)
+            ds = self.dataset.where(rasterized)
 
             ds = ds.dropna('lon', how='all')
             ds = ds.dropna('lat', how='all')
@@ -130,3 +131,16 @@ class OpenSmos:
             stop_date = self.stop_date
         return smos_dataset.where((smos_dataset.measurement_time >= start_date) &
                                   (smos_dataset.measurement_time <= stop_date), drop=True)
+
+    @property
+    def acquisition_type(self):
+        """
+        Gives the acquisition type (swath, truncated_swath,daily_regular_grid, model_regular_grid)
+
+        Returns
+        -------
+        str
+            acquisition type
+
+        """
+        return 'daily_regular_grid'
