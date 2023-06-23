@@ -5,6 +5,7 @@ from shapely import wkt
 import numpy as np
 import fsspec
 import itertools
+from datetime import datetime
 
 
 def unique(iterable):
@@ -36,8 +37,7 @@ def get_all_rs2_dirs_as_list(level=1):
         files = glob.glob(os.path.join(root_path, "*", "*", "*", "*", "RS2*"))
     elif level == 1:
         root_path = '/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'
-        files = (glob.glob(os.path.join(root_path, "*", "*", "*"))
-            + glob.glob(os.path.join(root_path, "*", "*", "*", "RS2*")))
+        files = glob.glob(os.path.join(root_path, "*", "*", "*", "RS2*"))
     return files
 
 
@@ -46,7 +46,13 @@ def get_acquisition_root_paths(db_name):
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
         'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
-        'ERA': ['/dataref/ecmwf/intranet/ERA5/']
+        'ERA': ['/dataref/ecmwf/intranet/ERA5/'],
+        'RS2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*',
+                '/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
+        'S1': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*',
+               '/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*',
+               '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/sentinel-1*'],
+        'RCM': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
     }
     return roots[db_name]
 
@@ -65,7 +71,7 @@ def call_open_class(file, db_name):
 
 def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
     """
-    Return all existing product for a specific sensor (ex : SMOS)
+    Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY)
 
     Parameters
     ----------
@@ -143,19 +149,45 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
+                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
+                                                schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
 
         return get_last_generation_files(files)
     elif db_name == 'HY':
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, "*", "*", f"*{scheme}*nc"))
+                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
+                                                schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
         # remove files for which hour doesn't correspond to the selected times
         for f in files.copy():
             start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
             if (stop_hy < start_date) or (start_hy > stop_date):
                 files.remove(f)
+        return files
+    elif db_name == 'S1':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
+                                                schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE"))
+        for f in files.copy():
+            if 'L2' in f:
+                files[files.index(f)] = find_l2_nc(f)
+        return files
+    elif db_name == 'RS2':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
+                                                schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
+        for f in files.copy():
+            if 'L2' in f:
+                files[files.index(f)] = find_l2_nc(f)
+        return files
+    elif db_name == 'RCM':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
+                                                schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
         return files
 
 
@@ -198,11 +230,16 @@ def correct_dataset(dataset, lon_name='lon'):
 
 
 def date_schemes(start_date, stop_date):
-    schemes = []
+    schemes = {}
     date = start_date
     while date <= stop_date:
-        schemes.append(str(date.astype('datetime64[D]')).replace('-', ''))
+        scheme = str(date.astype('datetime64[D]')).replace('-', '')
+        year = str(date.astype('datetime64[Y]'))
+        day_of_year = date.astype(datetime).strftime('%j')
         date += np.timedelta64(1, 'D')
+        tmp_dic = {'year': year,
+                   'dayOfYear': day_of_year}
+        schemes[scheme] = tmp_dic
     return schemes
 
 
