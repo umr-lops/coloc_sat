@@ -1,6 +1,6 @@
 import os
 from .tools import call_sar_meta, open_l2, convert_str_to_polygon, extract_start_stop_dates_from_l2
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPoint
 import numpy as np
 
 
@@ -151,6 +151,12 @@ class OpenSar:
         if self.is_safe:
             entire_poly = Polygon()
             for ds_name in self._l1_info['dataset_names']:
+                """sub_geoloc = self._l1_info['submeta'][ds_name].geoloc  # geoloc of a subdataset
+                sub_geoloc = sub_geoloc.where((sub_geoloc.azimuthTime >= start_date) & \
+                                              (sub_geoloc.azimuthTime <= stop_date), drop=True)
+                stacked_subgeo = sub_geoloc.stack({"cells": ["line", "sample"]}).dropna(dim="cells")
+                fp = MultiPoint(np.column_stack((stacked_subgeo.longitude, stacked_subgeo.latitude))).convex_hull"""
+                self._l1_info['footprints'][ds_name] = self._l1_info['submeta'][ds_name].footprint
                 fp = self._l1_info['footprints'][ds_name]
                 entire_poly = entire_poly.union(fp)
             return entire_poly
@@ -171,7 +177,7 @@ class OpenSar:
             start_dates = [np.datetime64(value['start_date']) for value in self._l1_info['times'].values()]
             return min(start_dates)
         else:
-            #return np.datetime64(self._l2_info.attrs['firstMeasurementTime'])
+            # return np.datetime64(self._l2_info.attrs['firstMeasurementTime'])
             return extract_start_stop_dates_from_l2(self.product_path)[0]
 
     @property
@@ -188,7 +194,7 @@ class OpenSar:
             stop_dates = [np.datetime64(value['stop_date']) for value in self._l1_info['times'].values()]
             return min(stop_dates)
         else:
-            #return np.datetime64(self._l2_info.attrs['lastMeasurementTime'])
+            # return np.datetime64(self._l2_info.attrs['lastMeasurementTime'])
             return extract_start_stop_dates_from_l2(self.product_path)[0]
 
     @property
@@ -207,4 +213,15 @@ class OpenSar:
         else:
             return True
 
+    @property
+    def acquisition_type(self):
+        """
+        Gives the acquisition type (swath, truncated_swath,daily_regular_grid, model_regular_grid)
 
+        Returns
+        -------
+        str
+            acquisition type
+
+        """
+        return 'truncated_swath'
