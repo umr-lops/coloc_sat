@@ -42,6 +42,42 @@ class OpenSmos:
         """
         return max(np.unique(self.dataset.measurement_time))
 
+    @property
+    def longitude_name(self):
+        """
+        Get the name of the longitude variable in the dataset
+
+        Returns
+        -------
+        str
+            longitude name
+        """
+        return 'lon'
+
+    @property
+    def latitude_name(self):
+        """
+        Get the name of the latitude variable in the dataset
+
+        Returns
+        -------
+        str
+            latitude name
+        """
+        return 'lat'
+
+    @property
+    def time_name(self):
+        """
+        Get the name of the time variable in the dataset
+
+        Returns
+        -------
+        str
+            time name
+        """
+        return 'measurement_time'
+
     def footprint(self, polygon, start_date=None, stop_date=None):
         """
         Get the footprint between 2 times. If no one specified, get the footprint between the start and stop

@@ -42,6 +42,42 @@ class OpenHy:
         """
         return max(np.unique(self.time))
 
+    @property
+    def longitude_name(self):
+        """
+        Get the name of the longitude variable in the dataset
+
+        Returns
+        -------
+        str
+            longitude name
+        """
+        return 'lon'
+
+    @property
+    def latitude_name(self):
+        """
+        Get the name of the latitude variable in the dataset
+
+        Returns
+        -------
+        str
+            latitude name
+        """
+        return 'lat'
+
+    @property
+    def time_name(self):
+        """
+        Get the name of the time variable in the dataset
+
+        Returns
+        -------
+        str
+            time name
+        """
+        return 'time'
+
     def extract_times_dataset(self, hy_dataset, start_date=None, stop_date=None):
         if start_date is None:
             start_date = self.start_date
