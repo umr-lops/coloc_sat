@@ -36,19 +36,19 @@ def get_acquisition_root_paths(db_name):
 
 def call_open_class(file):
     sar_satellites = ['RS2', 'S1A', 'S1B', 'RCM1', 'RCM2', 'RCM3']
-    basename = os.path.basename(file)
-    if basename.startswith('SM_'):
-        from .open_smos import OpenSmos
-        return OpenSmos(file)
-    elif basename.split('_')[3] == 'hy':
-        from .open_hy import OpenHy
-        return OpenHy(file)
-    elif basename.startswith('era_5'):
-        from .open_era import OpenEra
-        return OpenEra(file)
-    elif basename.split('_')[0] in sar_satellites:
+    basename = os.path.basename(file).upper()
+    if basename.split('_')[0].split('-')[0] in sar_satellites:
         from.open_sar import OpenSar
         return OpenSar(file)
+    elif basename.startswith('SM_'):
+        from .open_smos import OpenSmos
+        return OpenSmos(file)
+    elif basename.split('_')[3] == 'HY':
+        from .open_hy import OpenHy
+        return OpenHy(file)
+    elif basename.startswith('ERA_5'):
+        from .open_era import OpenEra
+        return OpenEra(file)
     else:
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
@@ -108,23 +108,26 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
             key3 = int(basename.split('_')[-2])
             return key1, key2, key3
 
-        final_files = []
-        sorted_files = sorted(files_list, key=extract_smos_sort_keys)
-        last_generation_file = sorted_files[0]
-        for index, file in enumerate(sorted_files):
-            # prefix is the same when only the generation is different
-            prefix = '_'.join(os.path.basename(file).split('_')[:-2])
-            if prefix == '_'.join(os.path.basename(last_generation_file).split('_')[:-2]):
-                # if the generation is greater, we increase the reference generation
-                if extract_smos_sort_keys(file)[2] >= extract_smos_sort_keys(last_generation_file)[2]:
+        if len(files_list) == 0:
+            return files_list
+        else:
+            final_files = []
+            sorted_files = sorted(files_list, key=extract_smos_sort_keys)
+            last_generation_file = sorted_files[0]
+            for index, file in enumerate(sorted_files):
+                # prefix is the same when only the generation is different
+                prefix = '_'.join(os.path.basename(file).split('_')[:-2])
+                if prefix == '_'.join(os.path.basename(last_generation_file).split('_')[:-2]):
+                    # if the generation is greater, we increase the reference generation
+                    if extract_smos_sort_keys(file)[2] >= extract_smos_sort_keys(last_generation_file)[2]:
+                        last_generation_file = file
+                else:
+                    final_files.append(last_generation_file)
                     last_generation_file = file
-            else:
-                final_files.append(last_generation_file)
-                last_generation_file = file
-            # The last files isn't added when it is a new product, so we add it
-            if index == len(sorted_files) - 1:
-                final_files.append(file)
-        return final_files
+                # The last files isn't added when it is a new product, so we add it
+                if index == len(sorted_files) - 1:
+                    final_files.append(file)
+            return final_files
 
     root_paths = get_acquisition_root_paths(db_name)
     files = []
@@ -135,7 +138,6 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
                                                 schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
-
         return get_last_generation_files(files)
     elif db_name == 'HY':
         # get all netcdf files which contain the days in schemes
@@ -357,4 +359,3 @@ def open_smos_file(product_path):
     """
     fs = fsspec.filesystem("file")
     return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
-
