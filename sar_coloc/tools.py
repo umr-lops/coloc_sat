@@ -18,35 +18,12 @@ def determine_dims(coords):
     return unique(itertools.chain.from_iterable(all_dims))
 
 
-def get_all_rs2_dirs_as_list(level=1):
-    """
-    Return all existing product for a specific level of Radar-Sat 2
-
-    Parameters
-    ----------
-    level : int
-        Product level value ( 1 or 2 )
-
-    Returns
-    -------
-    List[str]
-        Path of all existing products for the chosen level
-    """
-    if level == 2:
-        root_path = '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2'
-        files = glob.glob(os.path.join(root_path, "*", "*", "*", "*", "RS2*"))
-    elif level == 1:
-        root_path = '/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'
-        files = glob.glob(os.path.join(root_path, "*", "*", "*", "RS2*"))
-    return files
-
-
 def get_acquisition_root_paths(db_name):
     roots = {
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
         'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
-        'ERA': ['/dataref/ecmwf/intranet/ERA5/'],
+        'ERA': ['/dataref/ecmwf/intranet/ERA5'],
         'RS2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*',
                 '/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
         'S1': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*',
@@ -57,16 +34,23 @@ def get_acquisition_root_paths(db_name):
     return roots[db_name]
 
 
-def call_open_class(file, db_name):
-    if db_name == 'SMOS':
+def call_open_class(file):
+    sar_satellites = ['RS2', 'S1A', 'S1B', 'RCM1', 'RCM2', 'RCM3']
+    basename = os.path.basename(file)
+    if basename.startswith('SM_'):
         from .open_smos import OpenSmos
         return OpenSmos(file)
-    elif db_name == 'HY':
+    elif basename.split('_')[3] == 'hy':
         from .open_hy import OpenHy
         return OpenHy(file)
-    elif db_name == 'ERA':
+    elif basename.startswith('era_5'):
         from .open_era import OpenEra
         return OpenEra(file)
+    elif basename.split('_')[0] in sar_satellites:
+        from.open_sar import OpenSar
+        return OpenSar(file)
+    else:
+        raise ValueError(f"Can't recognize satellite type from product {basename}")
 
 
 def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
