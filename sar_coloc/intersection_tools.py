@@ -77,7 +77,7 @@ def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start
     else:
         raise ValueError('intersection_drg_truncated_swath only can be used with a daily regular grid \
                             acquisition and a truncated one')
-    fp = truncated.footpint
+    fp = truncated.footprint
     ds = spatial_geographic_intersection(daily, polygon=fp)
     if (ds is not None) and (not are_dimensions_empty(ds)):
         return True
