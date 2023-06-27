@@ -25,15 +25,11 @@ def get_acquisition_root_paths(db_name):
         'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
         'ERA': ['/dataref/ecmwf/intranet/ERA5'],
         'RS2': {
-            'L1': {
-                ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1']
-            },
+            'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
             'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*'],
         },
         'S1': {
-            'L1': {
-                ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1']
-            },
+            'L1': ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1'],
             'L2': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*',
                    '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings\
                    /c39e79a/default/sentinel-1*'],
