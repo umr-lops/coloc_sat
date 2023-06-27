@@ -1,5 +1,5 @@
 import os
-from .tools import call_sar_meta, open_l2, convert_str_to_polygon, extract_start_stop_dates_from_l2
+from .tools import call_sar_meta, open_l2, get_l2_footprint, extract_start_stop_dates_from_l2
 from shapely.geometry import Polygon, MultiPoint
 import numpy as np
 
@@ -44,8 +44,9 @@ class OpenSar:
         sub-datasets
         """
         if self.is_safe:
-            if self.satellite_name == 'S1':
-                self._l1_info['dataset_names'] = [ds_name for ds_name in list(self._l1_info['meta'].subdatasets.index)]
+            if (self.satellite_name == 'S1') and self.multidataset:
+                self._l1_info['dataset_names'] = [ds_name for ds_name in list(self._l1_info['meta']
+                                                                                  .subdatasets.index)]
             else:
                 self._l1_info['dataset_names'] = [self.product_path]
         else:
@@ -161,7 +162,7 @@ class OpenSar:
                 entire_poly = entire_poly.union(fp)
             return entire_poly
         else:
-            return convert_str_to_polygon(self._l2_info.attrs['footprint'])
+            return get_l2_footprint(self._l2_info)
 
     @property
     def start_date(self):
