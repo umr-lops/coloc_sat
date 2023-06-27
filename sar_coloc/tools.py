@@ -1,7 +1,7 @@
 import os
 import glob
 import xarray as xr
-from shapely import wkt
+from shapely import wkt, Polygon
 import numpy as np
 import fsspec
 import itertools
@@ -24,12 +24,23 @@ def get_acquisition_root_paths(db_name):
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
         'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
         'ERA': ['/dataref/ecmwf/intranet/ERA5'],
-        'RS2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*',
-                '/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
-        'S1': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*',
-               '/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*',
-               '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/sentinel-1*'],
-        'RCM': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
+        'RS2': {
+            'L1': {
+                ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1']
+            },
+            'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*'],
+        },
+        'S1': {
+            'L1': {
+                ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1']
+            },
+            'L2': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*',
+                   '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings\
+                   /c39e79a/default/sentinel-1*'],
+        },
+        'RCM': {
+            'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
+        }
     }
     return roots[db_name]
 
@@ -38,7 +49,7 @@ def call_open_class(file):
     sar_satellites = ['RS2', 'S1A', 'S1B', 'RCM1', 'RCM2', 'RCM3']
     basename = os.path.basename(file).upper()
     if basename.split('_')[0].split('-')[0] in sar_satellites:
-        from.open_sar import OpenSar
+        from .open_sar import OpenSar
         return OpenSar(file)
     elif basename.startswith('SM_'):
         from .open_smos import OpenSmos
@@ -87,6 +98,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
             Latest generation SMOS paths
 
         """
+
         def extract_smos_sort_keys(string):
             """
             From a SMOS path, extract the orbit (Ascending or Descending), the date and the generation number. It is
@@ -152,28 +164,51 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                 files.remove(f)
         return files
     elif db_name == 'S1':
-        for root_path in root_paths:
-            for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
-                                                schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE"))
-        for f in files.copy():
-            if 'L2' in f:
-                files[files.index(f)] = find_l2_nc(f)
+        for level in root_paths:
+            for root_path in root_paths[level]:
+                for scheme in schemes:
+                    if level == 'L1':
+                        files += glob.glob(os.path.join(root_path, '*', '*', schemes[scheme]['year'],
+                                                        schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE"))
+                    elif level == 'L2':
+                        files += glob.glob(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
+                                                        schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE", "*owi*.nc"))
+            """for f in files.copy():
+                if 'L2' in f:
+                    try:
+                        files[files.index(f)] = find_l2_nc(f)
+                    except IndexError:
+                        # pass
+                        files.remove(f)"""
         return files
     elif db_name == 'RS2':
-        for root_path in root_paths:
-            for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
-                                                schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
-        for f in files.copy():
+        for level in root_paths:
+            for root_path in root_paths[level]:
+                for scheme in schemes:
+                    if level == 'L1':
+                        files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
+                                                        schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
+                    elif level == 'L2':
+                        files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
+                                                        schemes[scheme]['dayOfYear'], f"RS2*{scheme}*", "*owi*.nc"))
+        """for f in files.copy():
             if 'L2' in f:
-                files[files.index(f)] = find_l2_nc(f)
+                try:
+                    files[files.index(f)] = find_l2_nc(f)
+                except IndexError:
+                    # pass
+                    files.remove(f)"""
         return files
     elif db_name == 'RCM':
-        for root_path in root_paths:
-            for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
-                                                schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
+        for level in root_paths:
+            for root_path in root_paths[level]:
+                for scheme in schemes:
+                    if level == 'L1':
+                        files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
+                                                        schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
+                    elif level == 'L2':
+                        # TODO : search files when RCM level 2 exist
+                        pass
         return files
 
 
@@ -277,7 +312,7 @@ def call_sar_meta(dataset_id):
 
 def find_l2_nc(product_path):
     if os.path.isdir(product_path):
-        nc_product = glob.glob(os.path.join(product_path, 'rs2*.nc'))
+        nc_product = glob.glob(os.path.join(product_path, '*owi*.nc'))
         if len(nc_product) > 1:
             raise ValueError(f"Many netcdf files can be read for this product, please select an only one in the " +
                              f"following list : {nc_product}")
@@ -323,6 +358,32 @@ def convert_str_to_polygon(poly_str):
         Polygon
     """
     return wkt.loads(poly_str)
+
+
+def get_l2_footprint(dataset):
+    """
+    Get footprint of a Level 2 SAR product
+
+    Parameters
+    ----------
+    dataset: xarray.Dataset
+        Dataset of the Level 2 product
+
+    Returns
+    -------
+    shapely.geometry.polygon.Polygon
+        Footprint of the product as a polygon
+    """
+    if 'footprint' in dataset.attrs:
+        return convert_str_to_polygon(dataset.attrs['footprint'])
+    else:
+        footprint_dict = {}
+        for ll in ['owiLon', 'owiLat']:
+            footprint_dict[ll] = [
+                dataset[ll].isel(owiAzSize=a, owiRaSize=x).values for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
+            ]
+        corners = list(zip(footprint_dict['owiLon'], footprint_dict['owiLat']))
+        return Polygon(corners)
 
 
 def open_nc(product_path):
