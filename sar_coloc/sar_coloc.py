@@ -49,6 +49,7 @@ class SarColoc:
                     _colocated_files.append(file)
             except FileNotFoundError:
                 pass
+            #print(f"The file {file} has been treated. \n Progression : {(self.comparison_files.index(file) +1 ) * 100 / len(self.comparison_files)}\n ########")
         if len(_colocated_files) > 0:
             self.colocated_files = _colocated_files
 
