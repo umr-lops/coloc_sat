@@ -1,5 +1,6 @@
 import numpy as np
 import rasterio
+from shapely import MultiPoint
 
 
 def has_footprint_intersection(open_acquisition1, open_acquisition2, delta_time):
@@ -20,6 +21,11 @@ def has_footprint_intersection(open_acquisition1, open_acquisition2, delta_time)
             ((open_acquisition2.acquisition_type == 'truncated_swath') and
              (open_acquisition1.acquisition_type == 'daily_regular_grid')):
         return intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start_date, stop_date)
+    elif ((open_acquisition1.acquisition_type == 'truncated_swath') and
+          (open_acquisition2.acquisition_type == 'swath')) or \
+            ((open_acquisition2.acquisition_type == 'truncated_swath') and
+             (open_acquisition1.acquisition_type == 'swath')):
+        return intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, start_date, stop_date)
 
 
 def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start_date=None, stop_date=None):
@@ -54,17 +60,16 @@ def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start
                 dataset = dataset.dropna(lat_name, how='all')
                 return dataset
         else:
-            raise ValueError('`rasterize_polygon` only can be applied on daily regular grid acquisition')
+            raise ValueError('`geographic_intersection` only can be applied on daily regular grid acquisition')
 
     def spatial_geographic_intersection(open_acquisition, polygon=None):
         if open_acquisition.acquisition_type == 'daily_regular_grid':
             dataset = geographic_intersection(open_acquisition, polygon)
             dataset = extract_times_dataset(open_acquisition, time_name=open_acquisition.time_name, dataset=dataset,
                                             start_date=start_date, stop_date=stop_date)
-            # ds = extract_wind_speed(ds)
             return dataset
         else:
-            raise ValueError('`rasterize_polygon` only can be applied on daily regular grid acquisition')
+            raise ValueError('`spatial_geographic_intersection` only can be applied on daily regular grid acquisition')
 
     if (open_acquisition1.acquisition_type == 'truncated_swath') and \
             (open_acquisition2.acquisition_type == 'daily_regular_grid'):
@@ -81,6 +86,63 @@ def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start
     ds = spatial_geographic_intersection(daily, polygon=fp)
     if (ds is not None) and (not are_dimensions_empty(ds)):
         return True
+    else:
+        return False
+
+
+def intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, start_date=None, stop_date=None):
+
+    def geographic_intersection(open_acquisition, polygon=None):
+        if open_acquisition.acquisition_type == 'swath':
+            if polygon is None:
+                return open_acquisition.dataset
+            else:
+                lon_name = open_acquisition.longitude_name
+                lat_name = open_acquisition.latitude_name
+
+                ds_scat = open_acquisition.dataset
+                # Find the scatterometer points that are within the sar swath bounding box
+                min_lon, min_lat, max_lon, max_lat = polygon.bounds
+                condition = (ds_scat[lon_name] > min_lon) & (ds_scat[lon_name] < max_lon) & \
+                            (ds_scat[lat_name] > min_lat) & (ds_scat[lat_name] < max_lat)
+                ds_scat_intersected = ds_scat.where(condition, drop=True)
+                return ds_scat_intersected
+        else:
+            raise ValueError('`geographic_intersection` only can be applied on daily regular grid acquisition')
+
+    def spatial_geographic_intersection(open_acquisition, polygon=None):
+        if open_acquisition.acquisition_type == 'swath':
+            dataset = geographic_intersection(open_acquisition, polygon)
+            dataset = extract_times_dataset(open_acquisition, time_name=open_acquisition.time_name, dataset=dataset,
+                                            start_date=start_date, stop_date=stop_date)
+            return dataset
+        else:
+            raise ValueError('`spatial_geographic_intersection` only can be applied on daily regular grid acquisition')
+
+    if (open_acquisition1.acquisition_type == 'truncated_swath') and \
+            (open_acquisition2.acquisition_type == 'swath'):
+        truncated = open_acquisition1
+        swath = open_acquisition2
+    elif (open_acquisition2.acquisition_type == 'truncated_swath') and \
+            (open_acquisition1.acquisition_type == 'swath'):
+        truncated = open_acquisition2
+        swath = open_acquisition1
+    else:
+        raise ValueError('intersection_swath_truncated_swath only can be used with a swath \
+                            acquisition and a truncated one')
+
+    # footprint of the truncated swath
+    fp = truncated.footprint
+    # dataset where latitude and longitude are in the truncated swath footprint bounds,
+    # and where time criteria is respected
+    ds = spatial_geographic_intersection(swath, polygon=fp)
+    if (ds is not None) and (not are_dimensions_empty(ds)):
+        flatten_lon = ds[swath.longitude_name].data.flatten()
+        flatten_lat = ds[swath.latitude_name].data.flatten()
+        # Create a multipoint from swath lon/lat that are in the box and respect time criteria
+        mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)])
+        # Verify if a part of this multipoint can be intersected with the truncated swath footprint
+        return mpt.intersects(fp)
     else:
         return False
 
