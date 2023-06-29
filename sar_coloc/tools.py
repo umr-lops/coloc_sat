@@ -23,7 +23,8 @@ def get_acquisition_root_paths(db_name):
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
         'HY2': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
-        'ERA5': ['/dataref/ecmwf/intranet/ERA5'],
+        'ERA5': [  # '/dataref/ecmwf/intranet/ERA5'
+            '/home/ref-ecmwf/ERA5/'],
         'RS2': {
             'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
             'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*'],
@@ -31,8 +32,8 @@ def get_acquisition_root_paths(db_name):
         'S1': {
             'L1': ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1'],
             'L2': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*',
-                   '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings\
-                   /c39e79a/default/sentinel-1*'],
+                   '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings' +
+                   '/c39e79a/default/sentinel-1*'],
         },
         'RCM': {
             'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
@@ -146,7 +147,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
                                                 schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
-        return get_last_generation_files(files)
+        files = get_last_generation_files(files)
     elif db_name == 'HY2':
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
@@ -158,7 +159,6 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
             start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
             if (stop_hy < start_date) or (start_hy > stop_date):
                 files.remove(f)
-        return files
     elif db_name == 'S1':
         for level in root_paths:
             for root_path in root_paths[level]:
@@ -169,14 +169,6 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                     elif level == 'L2':
                         files += glob.glob(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE", "*owi*.nc"))
-            """for f in files.copy():
-                if 'L2' in f:
-                    try:
-                        files[files.index(f)] = find_l2_nc(f)
-                    except IndexError:
-                        # pass
-                        files.remove(f)"""
-        return files
     elif db_name == 'RS2':
         for level in root_paths:
             for root_path in root_paths[level]:
@@ -194,7 +186,6 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                 except IndexError:
                     # pass
                     files.remove(f)"""
-        return files
     elif db_name == 'RCM':
         for level in root_paths:
             for root_path in root_paths[level]:
@@ -205,7 +196,20 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                     elif level == 'L2':
                         # TODO : search files when RCM level 2 exist
                         pass
-        return files
+    elif db_name == 'ERA5':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
+                                                schemes[scheme]['month'], f"era_5*{scheme}*nc"))
+    if db_name in ['S1', 'RS2', 'RCM']:
+        for f in files.copy():
+            try:
+                start, stop = extract_start_stop_dates_from_sar(f)
+            except:
+                print(f)
+            if (stop < start_date) or (start > stop_date):
+                files.remove(f)
+    return files
 
 
 def cross_antemeridian(dataset):
@@ -252,10 +256,12 @@ def date_schemes(start_date, stop_date):
     while date <= stop_date:
         scheme = str(date.astype('datetime64[D]')).replace('-', '')
         year = str(date.astype('datetime64[Y]'))
+        month = str(date.astype('datetime64[M]').astype(int) % 12 + 1)
         day_of_year = date.astype(datetime).strftime('%j')
         date += np.timedelta64(1, 'D')
         tmp_dic = {'year': year,
-                   'dayOfYear': day_of_year}
+                   'dayOfYear': day_of_year,
+                   'month': month}
         schemes[scheme] = tmp_dic
     return schemes
 
@@ -266,16 +272,86 @@ def extract_start_stop_dates_from_hy(product_path):
     return min(unique_time), max(unique_time)
 
 
-def extract_start_stop_dates_from_l2(product_path):
-    nc_path = find_l2_nc(product_path)
-    nc_basename = os.path.basename(nc_path)
-    start_date_str = nc_basename.split('-')[4].replace('t', '')
-    start_date_str = f"{start_date_str[0:4]}-{start_date_str[4:6]}-{start_date_str[6:8]}T{start_date_str[8:10]}:" + \
-                     f"{start_date_str[10:12]}:{start_date_str[12:16]}"
-    stop_date_str = nc_basename.split('-')[5].replace('t', '')
-    stop_date_str = f"{stop_date_str[0:4]}-{stop_date_str[4:6]}-{stop_date_str[6:8]}T{stop_date_str[8:10]}:" + \
-                    f"{stop_date_str[10:12]}:{stop_date_str[12:16]}"
-    return np.datetime64(start_date_str), np.datetime64(stop_date_str)
+def parse_date(date):
+    """
+    Parse a date at the format %Y%Y%Y%Y%M%M%D%D%H%H%M%M%S%S, to the format numpy.datetime64
+
+    Parameters
+    ----------
+    date: str
+        date at the format %Y%Y%Y%Y%M%M%D%D%H%H%M%M%S%S
+
+    Returns
+    -------
+    numpy.datetime64
+        parsed date
+    """
+    if not isinstance(date, str):
+        raise ValueError('Argument date must be a string')
+    if len(date) != 14:
+        raise ValueError("Date isn't at the good format, please use the format %Y%Y%Y%Y%M%M%D%D%H%H%M%M%S%S")
+    formatted_date_string = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{date[8:10]}:{date[10:12]}:{date[12:16]}"
+    return np.datetime64(formatted_date_string)
+
+
+def extract_start_stop_dates_from_sar(product_path):
+    """
+    Get the start and stop date for a SAR product filename. Caution: Level 1 --> for RS2 and RCM products,
+    filename only contains the start date, so stop date = start date + 5 minutes
+
+    Parameters
+    ----------
+    product_path: str
+        path of the product
+
+    Returns
+    -------
+    np.datetime64, np.datetime64
+        Tuple that contains the start and the stop dates
+    """
+    separators = {
+        'L1': '_',
+        'L2': '-'
+    }
+    # All level 2 products have a start and a stop date
+    index_l2 = {
+        'start': 4,
+        'stop': 5
+    }
+    # All S1 level 1 have a start and a stop date
+    index_l1_sentinel = {
+        'start': -5,
+        'stop': -4
+    }
+    # All RCM and RS2 level 1 only have a start date, divided in a date (%Y%Y%Y%Y%M%M%D%D) and a time (%H%H%M%M%S%S)
+    index_l1_radarsat = {
+        'date': 5,
+        'time': 6
+    }
+    basename = os.path.basename(product_path)
+    upper_basename = basename.upper()
+    # level 2 products
+    if basename.endswith('.nc'):
+        split_basename = upper_basename.split(separators['L2'])
+        str_start_date = split_basename[index_l2['start']].replace('T', '')
+        str_stop_date = split_basename[index_l2['stop']].replace('T', '')
+        start, stop = parse_date(str_start_date), parse_date(str_stop_date)
+    # level 1 products
+    else:
+        split_basename = upper_basename.split(separators['L1'])
+        # S1 products
+        if upper_basename.startswith('S1'):
+            str_start_date = split_basename[index_l1_sentinel['start']].replace('T', '')
+            str_stop_date = split_basename[index_l1_sentinel['stop']].replace('T', '')
+            start, stop = parse_date(str_start_date), parse_date(str_stop_date)
+        elif upper_basename.startswith('RCM') or upper_basename.startswith('RS2'):
+            str_start_date = split_basename[index_l1_radarsat['date']] + split_basename[index_l1_radarsat['time']]
+            start = parse_date(str_start_date)
+            # we only have the start date, so stop date = start date + 5 minutes
+            stop = start + np.timedelta64(5, 'm')
+        else:
+            raise ValueError(f"Can't recognize if the product {basename} is a RCM, a S1 or a RS2")
+    return start, stop
 
 
 def call_sar_meta(dataset_id):
