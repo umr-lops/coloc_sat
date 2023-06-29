@@ -203,10 +203,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                                                 schemes[scheme]['month'], f"era_5*{scheme}*nc"))
     if db_name in ['S1', 'RS2', 'RCM']:
         for f in files.copy():
-            try:
-                start, stop = extract_start_stop_dates_from_sar(f)
-            except:
-                print(f)
+            start, stop = extract_start_stop_dates_from_sar(f)
             if (stop < start_date) or (start > stop_date):
                 files.remove(f)
     return files
@@ -256,7 +253,7 @@ def date_schemes(start_date, stop_date):
     while date <= stop_date:
         scheme = str(date.astype('datetime64[D]')).replace('-', '')
         year = str(date.astype('datetime64[Y]'))
-        month = str(date.astype('datetime64[M]').astype(int) % 12 + 1)
+        month = str(date.astype('datetime64[M]')).split('-')[1]
         day_of_year = date.astype(datetime).strftime('%j')
         date += np.timedelta64(1, 'D')
         tmp_dic = {'year': year,
@@ -492,3 +489,5 @@ def open_smos_file(product_path):
     """
     fs = fsspec.filesystem("file")
     return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
+
+get_all_comparison_files(np.datetime64('2021-09-07T08:29:02.666371'), np.datetime64('2021-09-07T10:30:19.308508'), 'ERA5')
