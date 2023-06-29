@@ -51,11 +51,11 @@ def call_open_class(file):
         from .open_smos import OpenSmos
         return OpenSmos(file)
     elif basename.split('_')[3] == 'HY2':
-        from .open_hy import OpenHy
-        return OpenHy(file)
+        from .open_hy2 import OpenHy2
+        return OpenHy2(file)
     elif basename.startswith('ERA_5'):
-        from .open_era import OpenEra
-        return OpenEra(file)
+        from .open_era5 import OpenEra5
+        return OpenEra5(file)
     else:
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
