@@ -22,8 +22,8 @@ def get_acquisition_root_paths(db_name):
     roots = {
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
-        'HY': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
-        'ERA': ['/dataref/ecmwf/intranet/ERA5'],
+        'HY2': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
+        'ERA5': ['/dataref/ecmwf/intranet/ERA5'],
         'RS2': {
             'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
             'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*'],
@@ -50,7 +50,7 @@ def call_open_class(file):
     elif basename.startswith('SM_'):
         from .open_smos import OpenSmos
         return OpenSmos(file)
-    elif basename.split('_')[3] == 'HY':
+    elif basename.split('_')[3] == 'HY2':
         from .open_hy import OpenHy
         return OpenHy(file)
     elif basename.startswith('ERA_5'):
@@ -62,7 +62,7 @@ def call_open_class(file):
 
 def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
     """
-    Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY)
+    Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5)
 
     Parameters
     ----------
@@ -147,7 +147,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
                                                 schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
         return get_last_generation_files(files)
-    elif db_name == 'HY':
+    elif db_name == 'HY2':
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
