@@ -16,7 +16,6 @@ class OpenHy2:
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_nc(product_path).load()
         self.dataset = correct_dataset(self.dataset)
-        self.time = self.dataset.time
 
     @property
     def start_date(self):
@@ -28,7 +27,7 @@ class OpenHy2:
         numpy.datetime64
             Start time
         """
-        return min(np.unique(self.time))
+        return min(np.unique(self.dataset[self.time_name]))
 
     @property
     def stop_date(self):
@@ -40,7 +39,7 @@ class OpenHy2:
         numpy.datetime64
             Stop time
         """
-        return max(np.unique(self.time))
+        return max(np.unique(self.dataset[self.time_name]))
 
     @property
     def longitude_name(self):
@@ -83,7 +82,8 @@ class OpenHy2:
             start_date = self.start_date
         if stop_date is None:
             stop_date = self.stop_date
-        return hy_dataset.where((hy_dataset.time >= start_date) & (hy_dataset.time <= stop_date), drop=True)
+        return hy_dataset.where((hy_dataset[self.time_name] >= start_date) & (hy_dataset[self.time_name] <= stop_date),
+                                drop=True)
 
     def spatial_geographic_intersection(self, polygon=None, start_date=None, stop_date=None):
         ds = self.geographic_intersection(polygon)
