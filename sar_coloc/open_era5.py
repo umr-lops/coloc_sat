@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from tools import open_nc, correct_dataset
+from .tools import open_nc, correct_dataset
 
 
 class OpenEra5:
