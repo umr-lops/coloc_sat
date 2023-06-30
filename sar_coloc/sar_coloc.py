@@ -1,5 +1,5 @@
 """Main module."""
-from .tools import get_all_comparison_files, call_open_class
+from .tools import get_all_comparison_files, call_meta_class
 from .intersection_tools import has_footprint_intersection
 import numpy as np
 
@@ -8,7 +8,7 @@ class SarColoc:
     def __init__(self, product_id, db_name='SMOS', delta_time=60, create_netcdf=False):
         self.product_id = product_id
         self.db_name = db_name
-        self.product = call_open_class(product_id)
+        self.product = call_meta_class(product_id)
         self.delta_time = np.timedelta64(delta_time, 'm')
         self.comparison_files = self.get_comparison_files
         self.common_footprints = None
@@ -27,7 +27,7 @@ class SarColoc:
     def fill_footprints(self):
         _footprints = {}
         for file in self.comparison_files:
-            opened_file = call_open_class(file)
+            opened_file = call_meta_class(file)
             if self.product.footprint.intersects(
                     opened_file.footprint(self.product.footprint, self.start_date, self.stop_date)):
                 _footprints[file] = self.product.footprint \
@@ -44,7 +44,7 @@ class SarColoc:
         _colocated_files = []
         for file in self.comparison_files:
             try:
-                opened_file = call_open_class(file)
+                opened_file = call_meta_class(file)
                 if has_footprint_intersection(self.product, opened_file, delta_time=self.delta_time):
                     _colocated_files.append(file)
             except FileNotFoundError:

@@ -11,7 +11,7 @@ def extract_wind_speed(smos_dataset):
     return smos_dataset.where(~np.isnan(smos_dataset.wind_speed), drop=True)
 
 
-class OpenSmos:
+class GetSmosMeta:
     def __init__(self, product_path):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)

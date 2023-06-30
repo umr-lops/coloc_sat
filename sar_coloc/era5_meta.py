@@ -3,7 +3,7 @@ import numpy as np
 from .tools import open_nc, correct_dataset
 
 
-class OpenEra5:
+class GetEra5Meta:
     def __init__(self, product_path):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)

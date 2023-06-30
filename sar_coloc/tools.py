@@ -43,21 +43,21 @@ def get_acquisition_root_paths(db_name):
     return roots[db_name]
 
 
-def call_open_class(file):
+def call_meta_class(file):
     sar_satellites = ['RS2', 'S1A', 'S1B', 'RCM1', 'RCM2', 'RCM3']
     basename = os.path.basename(file).upper()
     if basename.split('_')[0].split('-')[0] in sar_satellites:
-        from .open_sar import OpenSar
-        return OpenSar(file)
+        from .sar_meta import GetSarMeta
+        return GetSarMeta(file)
     elif basename.startswith('SM_'):
-        from .open_smos import OpenSmos
-        return OpenSmos(file)
+        from .smos_meta import GetSmosMeta
+        return GetSmosMeta(file)
     elif basename.split('_')[3] == 'HY2':
-        from .open_hy2 import OpenHy2
-        return OpenHy2(file)
+        from .hy2_meta import GetHy2Meta
+        return GetHy2Meta(file)
     elif basename.startswith('ERA_5'):
-        from .open_era5 import OpenEra5
-        return OpenEra5(file)
+        from .era5_meta import GetEra5Meta
+        return GetEra5Meta(file)
     else:
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
@@ -520,5 +520,3 @@ def open_smos_file(product_path):
     """
     fs = fsspec.filesystem("file")
     return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
-
-get_all_comparison_files(np.datetime64('2021-09-07T08:29:02.666371'), np.datetime64('2021-09-07T10:30:19.308508'), 'ERA5')

@@ -4,7 +4,7 @@ from shapely.geometry import Polygon, MultiPoint
 import numpy as np
 
 
-class OpenSar:
+class GetSarMeta:
     def __init__(self, product_path):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
