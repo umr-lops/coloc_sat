@@ -5,7 +5,7 @@ import numpy as np
 
 
 class GetSarMeta:
-    def __init__(self, product_path):
+    def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self._l1_info = None

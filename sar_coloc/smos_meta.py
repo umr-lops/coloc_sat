@@ -12,7 +12,7 @@ def extract_wind_speed(smos_dataset):
 
 
 class GetSmosMeta:
-    def __init__(self, product_path):
+    def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_smos_file(product_path).squeeze().load()

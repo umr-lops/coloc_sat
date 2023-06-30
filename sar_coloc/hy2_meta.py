@@ -11,7 +11,7 @@ def extract_wind_speed(smos_dataset):
 
 
 class GetHy2Meta:
-    def __init__(self, product_path):
+    def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_nc(product_path).load()
