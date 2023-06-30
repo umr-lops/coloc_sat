@@ -26,6 +26,11 @@ def has_footprint_intersection(open_acquisition1, open_acquisition2, delta_time)
             ((open_acquisition2.acquisition_type == 'truncated_swath') and
              (open_acquisition1.acquisition_type == 'swath')):
         return intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, start_date, stop_date)
+    elif ((open_acquisition1.acquisition_type == 'model_regular_grid') or
+          (open_acquisition2.acquisition_type == 'model_regular_grid')):
+        # if it is a model so there is data every day and worldwide => file can be co-located
+        # (model file has been chosen depending on the date)
+        return True
 
 
 def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start_date=None, stop_date=None):
