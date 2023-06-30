@@ -42,18 +42,14 @@ class SarColoc:
 
     def fill_colocated_files(self):
         _colocated_files = []
-        if self.db_name != 'ERA5':
-            for file in self.comparison_files:
-                try:
-                    opened_file = call_meta_class(file)
-                    if has_footprint_intersection(self.product, opened_file, delta_time=self.delta_time):
-                        _colocated_files.append(file)
-                except FileNotFoundError:
-                    pass
-                #print(f"The file {file} has been treated. \n Progression : {(self.comparison_files.index(file) +1 ) * 100 / len(self.comparison_files)}\n ########")
-        # ERA5 is a model, so there is data every day and worldwide => comparison files can be co-located
-        else:
-            _colocated_files = self.comparison_files
+        for file in self.comparison_files:
+            try:
+                opened_file = call_meta_class(file)
+                if has_footprint_intersection(self.product, opened_file, delta_time=self.delta_time):
+                    _colocated_files.append(file)
+            except FileNotFoundError:
+                pass
+            #print(f"The file {file} has been treated. \n Progression : {(self.comparison_files.index(file) +1 ) * 100 / len(self.comparison_files)}\n ########")
         if len(_colocated_files) > 0:
             self.colocated_files = _colocated_files
 
