@@ -9,14 +9,14 @@ from datetime import datetime
 from xsar.raster_readers import resource_strftime
 
 
-"""def unique(iterable):
+def unique(iterable):
     return list(dict.fromkeys(iterable))
 
 
 def determine_dims(coords):
     all_dims = [coord.dims for coord in coords.variables.values()]
 
-    return unique(itertools.chain.from_iterable(all_dims))"""
+    return unique(itertools.chain.from_iterable(all_dims))
 
 
 def get_acquisition_root_paths(db_name):
