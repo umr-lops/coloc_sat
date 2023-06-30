@@ -5,7 +5,7 @@ import numpy as np
 
 
 class SarColoc:
-    def __init__(self, product_id, db_name='SMOS', delta_time=60, create_netcdf=False):
+    def __init__(self, product_id, db_name='SMOS', delta_time=60):
         self.product_id = product_id
         self.db_name = db_name
         self.product = call_meta_class(product_id)
