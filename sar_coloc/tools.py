@@ -180,13 +180,6 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                     elif level == 'L2':
                         files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"RS2*{scheme}*", "*owi*.nc"))
-        """for f in files.copy():
-            if 'L2' in f:
-                try:
-                    files[files.index(f)] = find_l2_nc(f)
-                except IndexError:
-                    # pass
-                    files.remove(f)"""
     elif db_name == 'RCM':
         for level in root_paths:
             for root_path in root_paths[level]:
