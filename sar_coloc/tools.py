@@ -6,6 +6,7 @@ import numpy as np
 import fsspec
 import itertools
 from datetime import datetime
+from xsar.raster_readers import resource_strftime
 
 
 def unique(iterable):
@@ -24,7 +25,7 @@ def get_acquisition_root_paths(db_name):
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
         'HY2': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
         'ERA5': [  # '/dataref/ecmwf/intranet/ERA5'
-            '/home/ref-ecmwf/ERA5/'],
+            '/home/ref-ecmwf/ERA5/%Y/%m/era_5-copernicus__%Y%m%d.nc'],
         'RS2': {
             'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
             'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*'],
@@ -198,14 +199,44 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                         pass
     elif db_name == 'ERA5':
         for root_path in root_paths:
-            for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
-                                                schemes[scheme]['month'], f"era_5*{scheme}*nc"))
+            files = get_nearest_era5_files(start_date, stop_date, root_path)
+
     if db_name in ['S1', 'RS2', 'RCM']:
         for f in files.copy():
             start, stop = extract_start_stop_dates_from_sar(f)
             if (stop < start_date) or (start > stop_date):
                 files.remove(f)
+    return files
+
+
+def get_nearest_era5_files(start_date, stop_date, resource, step=3):
+    """
+    Get a list of era5 files
+
+    Parameters
+    ----------
+    start_date: numpy.datetime64
+        Start date for the research of era 5 files
+    stop_date: numpy.datetime64
+        End date for the research of era 5 files
+    resource: str
+        resource string, with strftime template
+    step: int
+        hour step between 2 files
+
+    Returns
+    -------
+    list[str]
+        Concerned ERA5 files
+    """
+    files = []
+    date = start_date
+    while date < stop_date:
+        datetime_date = date.tolist()
+        closest_date, filename = resource_strftime(resource, step=step, date=datetime_date)
+        if filename not in files:
+            files.append(filename)
+        date += np.timedelta64(step, 'm')
     return files
 
 
@@ -287,8 +318,8 @@ def parse_date(date):
         raise ValueError('Argument date must be a string')
     if len(date) != 14:
         raise ValueError("Date isn't at the good format, please use the format %Y%Y%Y%Y%M%M%D%D%H%H%M%M%S%S")
-    formatted_date_string = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{date[8:10]}:{date[10:12]}:{date[12:16]}"
-    return np.datetime64(formatted_date_string)
+    # formatted_date_string = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{date[8:10]}:{date[10:12]}:{date[12:16]}"
+    return np.datetime64(datetime.strptime(date, '%Y%m%d%H%M%S'))
 
 
 def extract_start_stop_dates_from_sar(product_path):
