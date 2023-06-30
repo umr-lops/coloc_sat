@@ -43,21 +43,21 @@ def get_acquisition_root_paths(db_name):
     return roots[db_name]
 
 
-def call_meta_class(file):
+def call_meta_class(file, listing=True):
     sar_satellites = ['RS2', 'S1A', 'S1B', 'RCM1', 'RCM2', 'RCM3']
     basename = os.path.basename(file).upper()
     if basename.split('_')[0].split('-')[0] in sar_satellites:
         from .sar_meta import GetSarMeta
-        return GetSarMeta(file)
+        return GetSarMeta(file, listing=listing)
     elif basename.startswith('SM_'):
         from .smos_meta import GetSmosMeta
-        return GetSmosMeta(file)
+        return GetSmosMeta(file, listing=listing)
     elif basename.split('_')[3] == 'HY2':
         from .hy2_meta import GetHy2Meta
-        return GetHy2Meta(file)
+        return GetHy2Meta(file, listing=listing)
     elif basename.startswith('ERA_5'):
         from .era5_meta import GetEra5Meta
-        return GetEra5Meta(file)
+        return GetEra5Meta(file, listing=listing)
     else:
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
@@ -202,7 +202,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
     return files
 
 
-def get_nearest_era5_files(start_date, stop_date, resource, step=3):
+def get_nearest_era5_files(start_date, stop_date, resource, step=1):
     """
     Get a list of era5 files
 
@@ -274,7 +274,7 @@ def correct_dataset(dataset, lon_name='lon'):
 def date_schemes(start_date, stop_date):
     schemes = {}
     date = start_date
-    while date <= stop_date:
+    while date.astype('datetime64[D]') <= stop_date.astype('datetime64[D]'):
         scheme = str(date.astype('datetime64[D]')).replace('-', '')
         year = str(date.astype('datetime64[Y]'))
         month = str(date.astype('datetime64[M]')).split('-')[1]
