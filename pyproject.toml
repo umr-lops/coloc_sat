@@ -13,7 +13,8 @@ dependencies = [
     "pandas",
     "shapely",
     "dask",
-    "xsar"
+    "xsar",
+    "more-itertools"
 ]
 readme = "README.md"
 dynamic = ["version"]
