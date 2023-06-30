@@ -1,15 +1,17 @@
 import os
 import numpy as np
-from .tools import open_nc, correct_dataset
+from .tools import open_nc, correct_dataset, parse_date
 
 
 class GetEra5Meta:
-    def __init__(self, product_path):
+    def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
-        self.dataset = open_nc(product_path).load()
-        self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.25))
-        self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.5))
+        self.dataset = None
+        if not listing:
+            self.dataset = open_nc(product_path).load()
+            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.25))
+            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.5))
 
     @property
     def start_date(self):
@@ -21,7 +23,9 @@ class GetEra5Meta:
         numpy.datetime64
             Start time
         """
-        return min(np.unique(self.dataset[self.time_name]))
+        # first time is at 00:00:00
+        str_time = self.product_path.split('_')[-1].split('.')[0] + '000000'
+        return parse_date(str_time)
 
     @property
     def stop_date(self):
@@ -33,7 +37,9 @@ class GetEra5Meta:
         numpy.datetime64
             Stop time
         """
-        return max(np.unique(self.dataset[self.time_name]))
+        # last time is at 23:00:00
+        str_time = self.product_path.split('_')[-1].split('.')[0] + '230000'
+        return parse_date(str_time)
 
     def longitude_name(self, resolution):
         """
