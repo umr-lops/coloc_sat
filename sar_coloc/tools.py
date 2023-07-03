@@ -52,7 +52,7 @@ def call_meta_class(file, listing=True):
     elif basename.startswith('SM_'):
         from .smos_meta import GetSmosMeta
         return GetSmosMeta(file, listing=listing)
-    elif basename.split('_')[3] == 'HY2':
+    elif basename.split('_')[3] == 'HY':
         from .hy2_meta import GetHy2Meta
         return GetHy2Meta(file, listing=listing)
     elif basename.startswith('ERA_5'):
@@ -273,7 +273,7 @@ def correct_dataset(dataset, lon_name='lon'):
 
 def date_schemes(start_date, stop_date):
     schemes = {}
-    date = start_date
+    date = np.datetime64(start_date, 's')
     while date.astype('datetime64[D]') <= stop_date.astype('datetime64[D]'):
         scheme = str(date.astype('datetime64[D]')).replace('-', '')
         year = str(date.astype('datetime64[Y]'))
