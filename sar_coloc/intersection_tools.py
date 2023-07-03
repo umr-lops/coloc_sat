@@ -145,7 +145,8 @@ def intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, sta
         flatten_lon = ds[swath.longitude_name].data.flatten()
         flatten_lat = ds[swath.latitude_name].data.flatten()
         # Create a multipoint from swath lon/lat that are in the box and respect time criteria
-        mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)])
+        mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)
+                          if (np.isfinite(lon) and np.isfinite(lat))])
         # Verify if a part of this multipoint can be intersected with the truncated swath footprint
         return mpt.intersects(fp)
     else:
