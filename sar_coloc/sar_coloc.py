@@ -5,9 +5,10 @@ import numpy as np
 
 
 class SarColoc:
-    def __init__(self, product_id, db_name='SMOS', delta_time=60):
+    def __init__(self, product_id, db_name='SMOS', level=None, delta_time=60):
         self.product_id = product_id
         self.db_name = db_name
+        self.level = level
         self.product = call_meta_class(product_id)
         self.delta_time = np.timedelta64(delta_time, 'm')
         self.comparison_files = self.get_comparison_files
@@ -70,7 +71,8 @@ class SarColoc:
         list
             Comparison files
         """
-        all_comparison_files = get_all_comparison_files(self.start_date, self.stop_date, db_name=self.db_name)
+        all_comparison_files = get_all_comparison_files(self.start_date, self.stop_date, db_name=self.db_name,
+                                                        level=self.level)
         if self.product_id in all_comparison_files:
             all_comparison_files.remove(self.product_id)
         return all_comparison_files

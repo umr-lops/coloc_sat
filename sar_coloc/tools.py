@@ -38,7 +38,9 @@ def get_acquisition_root_paths(db_name):
         },
         'RCM': {
             'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
-        }
+        },
+        'WS': ['/home/datawork-cersat-public/project/mpc-sentinel1/analysis/s1_data_analysis/project_rmarquar/' +
+               'wsat/data_compressed/dm']
     }
     return roots[db_name]
 
@@ -62,7 +64,7 @@ def call_meta_class(file, listing=True):
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
 
-def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
+def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
     """
     Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5)
 
@@ -74,6 +76,10 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
         Stop date for the research
     db_name: str
         Sensor name
+    level: int | None
+        When db_name is SAR, precise the value of the product level. If it is None, get all SAR levels. Useless to give
+        it a value when db_name is something else then a SAR ('S1', 'RS2', 'RCM'). Values can be 1, 2 or None
+        (default value).
 
     Returns
     -------
@@ -139,7 +145,17 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
                     final_files.append(file)
             return final_files
 
+    map_levels = {
+        1: 'L1',
+        2: 'L2'
+    }
+
     root_paths = get_acquisition_root_paths(db_name)
+    product_levels = []
+    if level is not None:
+        product_levels = [map_levels[level]]
+    elif (db_name == 'S1') or (db_name == 'RS2') or (db_name == 'RCM'):
+        product_levels = list(root_paths.keys())
     files = []
     schemes = date_schemes(start_date, stop_date)
     if db_name == 'SMOS':
@@ -161,33 +177,33 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS'):
             if (stop_hy < start_date) or (start_hy > stop_date):
                 files.remove(f)
     elif db_name == 'S1':
-        for level in root_paths:
-            for root_path in root_paths[level]:
+        for lvl in product_levels:
+            for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    if level == 'L1':
+                    if lvl == 'L1':
                         files += glob.glob(os.path.join(root_path, '*', '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE"))
-                    elif level == 'L2':
+                    elif lvl == 'L2':
                         files += glob.glob(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE", "*owi*.nc"))
     elif db_name == 'RS2':
-        for level in root_paths:
-            for root_path in root_paths[level]:
+        for lvl in product_levels:
+            for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    if level == 'L1':
+                    if lvl == 'L1':
                         files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
-                    elif level == 'L2':
+                    elif lvl == 'L2':
                         files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"RS2*{scheme}*", "*owi*.nc"))
     elif db_name == 'RCM':
-        for level in root_paths:
-            for root_path in root_paths[level]:
+        for lvl in product_levels:
+            for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    if level == 'L1':
+                    if lvl == 'L1':
                         files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
-                    elif level == 'L2':
+                    elif lvl == 'L2':
                         # TODO : search files when RCM level 2 exist
                         pass
     elif db_name == 'ERA5':
