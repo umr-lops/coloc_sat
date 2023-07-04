@@ -4,7 +4,11 @@ from .intersection_tools import has_intersection
 import numpy as np
 
 
-class SarListing:
+class FindColoc:
+    # Choices:
+    # - Don't always use footprint for all intersection types (because sometimes it needs more processing than it
+    # is necessary for a listing)
+    # - Use a function to fill co-located files instead of using a property, so that it is computed once.
     def __init__(self, product_id, db_name='SMOS', level=None, delta_time=60):
         self.product_id = product_id
         self.db_name = db_name
