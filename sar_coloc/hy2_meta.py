@@ -15,7 +15,7 @@ class GetHy2Meta:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_nc(product_path).load()
-        self.dataset = correct_dataset(self.dataset)
+        self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
 
     @property
     def start_date(self):

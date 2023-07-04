@@ -16,7 +16,7 @@ class GetSmosMeta:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_smos_file(product_path).squeeze().load()
-        self.dataset = correct_dataset(self.dataset)
+        self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
 
     @property
     def start_date(self):

@@ -10,8 +10,8 @@ class GetEra5Meta:
         self.dataset = None
         if not listing:
             self.dataset = open_nc(product_path).load()
-            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.25))
-            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.5))
+            self.set_dataset(correct_dataset(self.dataset, lon_name=self.longitude_name(0.25)))
+            self.set_dataset(correct_dataset(self.dataset, lon_name=self.longitude_name(0.5)))
 
     @property
     def start_date(self):
