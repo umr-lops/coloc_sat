@@ -1,6 +1,6 @@
 """Main module."""
 from .tools import get_all_comparison_files, call_meta_class
-from .intersection_tools import has_footprint_intersection
+from .intersection_tools import has_intersection
 import numpy as np
 
 
@@ -46,7 +46,7 @@ class SarColoc:
         for file in self.comparison_files:
             try:
                 opened_file = call_meta_class(file)
-                if has_footprint_intersection(self.product, opened_file, delta_time=self.delta_time):
+                if has_intersection(self.product, opened_file, delta_time=self.delta_time):
                     _colocated_files.append(file)
             except FileNotFoundError:
                 pass
