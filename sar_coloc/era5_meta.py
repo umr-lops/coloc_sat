@@ -113,3 +113,14 @@ class GetEra5Meta:
 
         """
         return 'model_regular_grid'
+
+    def set_dataset(self, dataset):
+        """
+        Setter of attribute `self.dataset`
+
+        Parameters
+        ----------
+        dataset: xarray.Dataset
+            new Dataset
+        """
+        self.dataset = dataset
