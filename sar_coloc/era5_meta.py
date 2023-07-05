@@ -124,3 +124,31 @@ class GetEra5Meta:
             new Dataset
         """
         self.dataset = dataset
+
+    @property
+    def orbit_segment_name(self):
+        """
+        Gives the name of the variable for orbit segmentation in dataset (Ascending / Descending). If value is None,
+        so the orbit hasn't orbited segmentation
+
+        Returns
+        -------
+        str | None
+            Orbit segmentation variable name in the dataset. None if there isn't one.
+        """
+        return None
+
+    @property
+    def has_orbited_segmentation(self):
+        """
+        True if there is orbit segmentation in the dataset
+
+        Returns
+        -------
+        bool
+            Presence or not of an orbit segmentation
+        """
+        if self.orbit_segment_name is not None:
+            return True
+        else:
+            return False
