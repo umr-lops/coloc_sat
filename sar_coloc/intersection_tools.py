@@ -1,6 +1,7 @@
 import numpy as np
 import rasterio
 from shapely import MultiPoint
+import copy
 
 
 def has_intersection(open_acquisition1, open_acquisition2, delta_time):
@@ -76,6 +77,13 @@ def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start
         else:
             raise ValueError('`spatial_temporal_intersection` only can be applied on daily regular grid acquisition')
 
+    def verify_intersection(drg_acquisition, footprint):
+        _ds = spatial_temporal_intersection(drg_acquisition, polygon=footprint)
+        if (_ds is not None) and (not are_dimensions_empty(_ds)):
+            return True
+        else:
+            return False
+
     if (open_acquisition1.acquisition_type == 'truncated_swath') and \
             (open_acquisition2.acquisition_type == 'daily_regular_grid'):
         truncated = open_acquisition1
@@ -88,11 +96,18 @@ def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start
         raise ValueError('intersection_drg_truncated_swath only can be used with a daily regular grid \
                             acquisition and a truncated one')
     fp = truncated.footprint
-    ds = spatial_temporal_intersection(daily, polygon=fp)
-    if (ds is not None) and (not are_dimensions_empty(ds)):
-        return True
+    if daily.has_orbited_segmentation:
+        # list that store booleans to express if an orbit has an intersection
+        orbit_intersections = []
+        for orbit in daily.dataset[daily.orbit_segment_name]:
+            sub_daily = copy.copy(daily)
+            # Select orbit in the dataset of sub_daily
+            sub_daily.set_dataset(sub_daily.dataset.isel(**{sub_daily.orbit_segment_name: orbit}))
+            orbit_intersections.append(verify_intersection(sub_daily, footprint=fp))
+        # if one of the orbit has an intersection, return True
+        return any(orbit_intersections)
     else:
-        return False
+        return verify_intersection(daily, footprint=fp)
 
 
 def intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, start_date=None, stop_date=None):
@@ -124,6 +139,21 @@ def intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, sta
         else:
             raise ValueError('`spatial_temporal_intersection` only can be applied on daily regular grid acquisition')
 
+    def verify_intersection(swath_acquisition, footprint):
+        # dataset where latitude and longitude are in the truncated swath footprint bounds,
+        # and where time criteria is respected
+        _ds = spatial_temporal_intersection(swath_acquisition, polygon=footprint)
+        if (_ds is not None) and (not are_dimensions_empty(_ds)):
+            flatten_lon = _ds[swath_acquisition.longitude_name].data.flatten()
+            flatten_lat = _ds[swath_acquisition.latitude_name].data.flatten()
+            # Create a multipoint from swath lon/lat that are in the box and respect time criteria
+            mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)
+                              if (np.isfinite(lon) and np.isfinite(lat))])
+            # Verify if a part of this multipoint can be intersected with the truncated swath footprint
+            return mpt.intersects(footprint)
+        else:
+            return False
+
     if (open_acquisition1.acquisition_type == 'truncated_swath') and \
             (open_acquisition2.acquisition_type == 'swath'):
         truncated = open_acquisition1
@@ -138,19 +168,23 @@ def intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, sta
 
     # footprint of the truncated swath
     fp = truncated.footprint
-    # dataset where latitude and longitude are in the truncated swath footprint bounds,
-    # and where time criteria is respected
-    ds = spatial_temporal_intersection(swath, polygon=fp)
-    if (ds is not None) and (not are_dimensions_empty(ds)):
-        flatten_lon = ds[swath.longitude_name].data.flatten()
-        flatten_lat = ds[swath.latitude_name].data.flatten()
-        # Create a multipoint from swath lon/lat that are in the box and respect time criteria
-        mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)
-                          if (np.isfinite(lon) and np.isfinite(lat))])
-        # Verify if a part of this multipoint can be intersected with the truncated swath footprint
-        return mpt.intersects(fp)
+
+    if swath.has_orbited_segmentation:
+        # list that store booleans to express if an orbit has an intersection
+        orbit_intersections = []
+        for orbit in swath.dataset[swath.orbit_segment_name]:
+            sub_swath = copy.copy(swath)
+            # Select orbit in the dataset of sub_daily
+            sub_swath.set_dataset(sub_swath.dataset.isel(**{sub_swath.orbit_segment_name: orbit}))
+            orbit_intersections.append(verify_intersection(sub_swath, footprint=fp))
+        # if one of the orbit has an intersection, return True
+        return any(orbit_intersections)
     else:
-        return False
+        return verify_intersection(swath, footprint=fp)
+
+
+def intersection_drg_non_truncated_swath(open_acquisition1, open_acquisition2, start_date=None, stop_date=None):
+    pass
 
 
 def extract_times_dataset(open_acquisition, time_name='time', dataset=None, start_date=None, stop_date=None):
