@@ -99,10 +99,10 @@ def intersection_drg_truncated_swath(open_acquisition1, open_acquisition2, start
     if daily.has_orbited_segmentation:
         # list that store booleans to express if an orbit has an intersection
         orbit_intersections = []
-        for orbit in daily.dataset[daily.orbit_segment_name]:
+        for orbit in daily.dataset[daily.orbit_segment_name].data:
             sub_daily = copy.copy(daily)
             # Select orbit in the dataset of sub_daily
-            sub_daily.set_dataset(sub_daily.dataset.isel(**{sub_daily.orbit_segment_name: orbit}))
+            sub_daily.set_dataset(sub_daily.dataset.sel(**{sub_daily.orbit_segment_name: orbit}))
             orbit_intersections.append(verify_intersection(sub_daily, footprint=fp))
         # if one of the orbit has an intersection, return True
         return any(orbit_intersections)
@@ -175,7 +175,7 @@ def intersection_swath_truncated_swath(open_acquisition1, open_acquisition2, sta
         for orbit in swath.dataset[swath.orbit_segment_name]:
             sub_swath = copy.copy(swath)
             # Select orbit in the dataset of sub_daily
-            sub_swath.set_dataset(sub_swath.dataset.isel(**{sub_swath.orbit_segment_name: orbit}))
+            sub_swath.set_dataset(sub_swath.dataset.sel(**{sub_swath.orbit_segment_name: orbit}))
             orbit_intersections.append(verify_intersection(sub_swath, footprint=fp))
         # if one of the orbit has an intersection, return True
         return any(orbit_intersections)
