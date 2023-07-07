@@ -13,7 +13,7 @@ class GetWindSatMeta:
         self.product_name = os.path.basename(self.product_path)
         self.dataset = to_xarray_dataset(WindSatDaily(product_path, np.nan)).load()
         self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
-        #self.set_dataset(self.convert_mingmt())
+        self.set_dataset(self.convert_mingmt())
 
     @property
     def longitude_name(self):
@@ -74,6 +74,18 @@ class GetWindSatMeta:
         """
         str_date = self.product_name.split('_')[1].split('v')[0]
         return datetime.strptime(str_date, '%Y%m%d')
+
+    @property
+    def minute_name(self):
+        """
+        Get name of the minute variable in the dataset
+
+        Returns
+        -------
+        str
+            Minute variable name
+        """
+        return 'mingmt'
 
     def convert_mingmt_ufunc(self, mingmt):
         """
