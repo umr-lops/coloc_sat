@@ -5,7 +5,7 @@ from shapely import wkt, Polygon
 import numpy as np
 import fsspec
 import itertools
-from datetime import datetime
+from datetime import datetime, timedelta
 from xsar.raster_readers import resource_strftime
 
 
@@ -40,7 +40,9 @@ def get_acquisition_root_paths(db_name):
             'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
         },
         'WS': ['/home/datawork-cersat-public/project/mpc-sentinel1/analysis/s1_data_analysis/project_rmarquar/' +
-               'wsat/data_compressed/dm']
+               'wsat/data_compressed/dm'],
+        'SMAP': ['/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily',
+                 '/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily_nrt']
     }
     return roots[db_name]
 
@@ -54,6 +56,9 @@ def call_meta_class(file, listing=True):
     elif basename.startswith('SM_'):
         from .smos_meta import GetSmosMeta
         return GetSmosMeta(file, listing=listing)
+    elif basename.startswith('WSAT_'):
+        from .windsat_meta import GetWindSatMeta
+        return GetWindSatMeta(file, listing=listing)
     elif basename.split('_')[3] == 'HY':
         from .hy2_meta import GetHy2Meta
         return GetHy2Meta(file, listing=listing)
@@ -209,6 +214,11 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
     elif db_name == 'ERA5':
         for root_path in root_paths:
             files = get_nearest_era5_files(start_date, stop_date, root_path)
+    elif db_name == 'WS':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
+                                                f"wsat_{scheme}*gz"))
 
     if db_name in ['S1', 'RS2', 'RCM']:
         for f in files.copy():
@@ -529,3 +539,45 @@ def open_smos_file(product_path):
     """
     fs = fsspec.filesystem("file")
     return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
+
+
+def convert_mingmt_ufunc(day_date, mingmt):
+    """
+    Convert a WindSat time value to the numpy.datetime64 format.
+    Parameters:
+        day_date (datetime.datetime): Date of the day
+        mingmt (int): WindSat time value in the minutes since midnight GMT format.
+    Returns:
+        (numpy.datetime64): WindSat time value reformated.
+    """
+    if np.isfinite(mingmt):
+        hours = int(mingmt // 60)
+        minutes = int(mingmt % 60)
+        if hours == 24:
+            hours = 0
+            day_date += timedelta(days=1)
+        return np.datetime64(day_date.replace(hour=hours, minute=minutes, second=0))
+    else:
+        return np.datetime64("NaT")
+
+
+def convert_mingmt(meta_acquisition):
+    """
+    Convert a WindSat time array to the numpy.datetime64 format.
+
+    Parameters
+    ----------
+    meta_acquisition: GetSmapMeta | GetSmosMeta | GetWindSatMeta
+        Metadata class of the acquisition that must have it minute variable corrected
+
+    Returns
+    -------
+    xarray.Dataset
+        Co-located WindSat dataset with time reformated.
+    """
+    ds = meta_acquisition.dataset
+    ds[meta_acquisition.time_name] = xr.apply_ufunc(convert_mingmt_ufunc, meta_acquisition.day_date,
+                                                    ds[meta_acquisition.minute_name],
+                                                    input_core_dims=[[], []],
+                                                    dask="parallelized", vectorize=True)
+    return ds.drop_vars([meta_acquisition.minute_name])
