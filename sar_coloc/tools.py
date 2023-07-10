@@ -38,6 +38,7 @@ def get_acquisition_root_paths(db_name):
         },
         'RCM': {
             'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
+            'L2': [],
         },
         'WS': ['/home/datawork-cersat-public/project/mpc-sentinel1/analysis/s1_data_analysis/project_rmarquar/' +
                'wsat/data_compressed/dm'],
