@@ -1,7 +1,8 @@
 import os
 import numpy as np
+from datetime import datetime
 
-from .tools import open_nc
+from .tools import open_nc, convert_mingmt
 
 
 class GetSmapMeta:
@@ -9,6 +10,7 @@ class GetSmapMeta:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_nc(product_path).load()
+        self.set_dataset(convert_mingmt(self))
 
     @property
     def longitude_name(self):
@@ -133,3 +135,17 @@ class GetSmapMeta:
             Minute variable name
         """
         return 'minute'
+
+    @property
+    def day_date(self):
+        """
+        Get day date from the product name as a datetime
+
+        Returns
+        -------
+        datetime.datetime
+        Day date of the product
+        """
+        split_name = self.product_name.split('_')
+        str_date = ''.join(split_name[-5: -2])
+        return datetime.strptime(str_date, '%Y%m%d')
