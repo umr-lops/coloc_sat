@@ -1,8 +1,9 @@
 import os
 import numpy as np
 from datetime import datetime
+import xarray as xr
 
-from .tools import open_nc, convert_mingmt
+from .tools import open_nc, convert_mingmt, correct_dataset
 
 
 class GetSmapMeta:
@@ -10,7 +11,11 @@ class GetSmapMeta:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.dataset = open_nc(product_path).load()
+        self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
         self.set_dataset(convert_mingmt(self))
+        # Modify orbit values by ascending and descending to be more significant
+        self.dataset[self.orbit_segment_name] = \
+            xr.where(self.dataset[self.orbit_segment_name] == 0, 'ascending', 'descending')
 
     @property
     def longitude_name(self):
@@ -107,7 +112,7 @@ class GetSmapMeta:
         str | None
             Orbit segmentation variable name in the dataset. None if there isn't one.
         """
-        return None
+        return 'node'
 
     @property
     def has_orbited_segmentation(self):
