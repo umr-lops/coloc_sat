@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 from datetime import datetime, timedelta
 
-from sar_coloc.tools import correct_dataset
+from sar_coloc.tools import correct_dataset, convert_mingmt
 from .windsat_daily_v7 import WindSatDaily, to_xarray_dataset
 
 
@@ -13,7 +13,7 @@ class GetWindSatMeta:
         self.product_name = os.path.basename(self.product_path)
         self.dataset = to_xarray_dataset(WindSatDaily(product_path, np.nan)).load()
         self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
-        self.set_dataset(self.convert_mingmt())
+        self.set_dataset(convert_mingmt(self))
 
     @property
     def longitude_name(self):
@@ -86,37 +86,6 @@ class GetWindSatMeta:
             Minute variable name
         """
         return 'mingmt'
-
-    def convert_mingmt_ufunc(self, mingmt):
-        """
-        Convert a WindSat time value to the numpy.datetime64 format.
-        Parameters:
-            mingmt (int): WindSat time value in the minutes since midnight GMT format.
-        Returns:
-            (numpy.datetime64): WindSat time value reformated.
-        """
-        if np.isfinite(mingmt):
-            hours = int(mingmt // 60)
-            minutes = int(mingmt % 60)
-            day_date = self.day_date
-            if hours == 24:
-                hours = 0
-                day_date += timedelta(days=1)
-            return np.datetime64(day_date.replace(hour=hours, minute=minutes, second=0))
-        else:
-            return np.datetime64("NaT")
-
-    def convert_mingmt(self):
-        """
-        Convert a WindSat time array to the numpy.datetime64 format.
-        Returns:
-            (xarray.Dataset): Co-located WindSat dataset with time reformated.
-        """
-        ds = self.dataset
-        ds[self.time_name] = xr.apply_ufunc(self.convert_mingmt_ufunc, ds['mingmt'],
-                                    input_core_dims=[[]],
-                                    dask="parallelized", vectorize=True)
-        return ds.drop_vars(['mingmt'])
 
     @property
     def acquisition_type(self):
