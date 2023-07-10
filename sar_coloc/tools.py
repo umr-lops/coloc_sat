@@ -541,29 +541,9 @@ def open_smos_file(product_path):
     return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
 
 
-def convert_mingmt_ufunc(day_date, mingmt):
-    """
-    Convert a WindSat time value to the numpy.datetime64 format.
-    Parameters:
-        day_date (datetime.datetime): Date of the day
-        mingmt (int): WindSat time value in the minutes since midnight GMT format.
-    Returns:
-        (numpy.datetime64): WindSat time value reformated.
-    """
-    if np.isfinite(mingmt):
-        hours = int(mingmt // 60)
-        minutes = int(mingmt % 60)
-        if hours == 24:
-            hours = 0
-            day_date += timedelta(days=1)
-        return np.datetime64(day_date.replace(hour=hours, minute=minutes, second=0))
-    else:
-        return np.datetime64("NaT")
-
-
 def convert_mingmt(meta_acquisition):
     """
-    Convert a WindSat time array to the numpy.datetime64 format.
+    Convert a time array since midnight GMT format (from an acquisition dataset) to the numpy.datetime64 format.
 
     Parameters
     ----------
@@ -573,11 +553,12 @@ def convert_mingmt(meta_acquisition):
     Returns
     -------
     xarray.Dataset
-        Co-located WindSat dataset with time reformated.
+        Co-located WindSat dataset with time reformatted. New time variable has the name specified in
+        `meta_acquisition.time_name`
     """
     ds = meta_acquisition.dataset
-    ds[meta_acquisition.time_name] = xr.apply_ufunc(convert_mingmt_ufunc, meta_acquisition.day_date,
-                                                    ds[meta_acquisition.minute_name],
-                                                    input_core_dims=[[], []],
-                                                    dask="parallelized", vectorize=True)
+    input_time = ds[meta_acquisition.minute_name]
+    if (np.dtype(input_time) == np.dtype('float64')) or (np.dtype(input_time) == np.dtype(int)):
+        input_time = input_time.astype('timedelta64[m]')
+    ds[meta_acquisition.time_name] = np.array(meta_acquisition.day_date, dtype="datetime64[ns]") + input_time
     return ds.drop_vars([meta_acquisition.minute_name])
