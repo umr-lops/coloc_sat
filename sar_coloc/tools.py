@@ -59,6 +59,9 @@ def call_meta_class(file, listing=True):
     elif basename.startswith('WSAT_'):
         from .windsat_meta import GetWindSatMeta
         return GetWindSatMeta(file, listing=listing)
+    elif basename.split('_')[1] == 'SMAP':
+        from .smap_meta import GetSmapMeta
+        return GetSmapMeta(file, listing=listing)
     elif basename.split('_')[3] == 'HY':
         from .hy2_meta import GetHy2Meta
         return GetHy2Meta(file, listing=listing)
@@ -219,6 +222,11 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
                                                 f"wsat_{scheme}*gz"))
+    elif db_name == 'SMAP':
+        for root_path in root_paths:
+            for scheme in schemes:
+                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
+                                                f"RSS_smap_*gz"))
 
     if db_name in ['S1', 'RS2', 'RCM']:
         for f in files.copy():
