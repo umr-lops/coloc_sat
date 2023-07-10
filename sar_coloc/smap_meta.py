@@ -27,7 +27,7 @@ class GetSmapMeta:
         str
             longitude name
         """
-        return 'longitude'
+        return 'lon'
 
     @property
     def latitude_name(self):
@@ -39,7 +39,7 @@ class GetSmapMeta:
         str
             latitude name
         """
-        return 'latitude'
+        return 'lat'
 
     @property
     def time_name(self):
