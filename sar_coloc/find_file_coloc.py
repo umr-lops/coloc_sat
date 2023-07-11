@@ -9,9 +9,9 @@ class FindFileColoc:
     # - Don't always use footprint for all intersection types (because sometimes it needs more processing than it
     # is necessary for a listing)
     # - Use a function to fill co-located files instead of using a property, so that it is computed once.
-    def __init__(self, product_id, db_name='SMOS', level=None, delta_time=60):
+    def __init__(self, product_id, ds_name='SMOS', level=None, delta_time=60):
         self.product_id = product_id
-        self.db_name = db_name
+        self.ds_name = ds_name
         self.level = level
         self.product = call_meta_class(product_id)
         self.delta_time = np.timedelta64(delta_time, 'm')
@@ -75,7 +75,7 @@ class FindFileColoc:
         list
             Comparison files
         """
-        all_comparison_files = get_all_comparison_files(self.start_date, self.stop_date, db_name=self.db_name,
+        all_comparison_files = get_all_comparison_files(self.start_date, self.stop_date, ds_name=self.ds_name,
                                                         level=self.level)
         if self.product_id in all_comparison_files:
             all_comparison_files.remove(self.product_id)

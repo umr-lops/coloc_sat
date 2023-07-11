@@ -19,7 +19,7 @@ def determine_dims(coords):
     return unique(itertools.chain.from_iterable(all_dims))
 
 
-def get_acquisition_root_paths(db_name):
+def get_acquisition_root_paths(ds_name):
     roots = {
         'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
                  '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
@@ -45,7 +45,7 @@ def get_acquisition_root_paths(db_name):
         'SMAP': ['/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily',
                  '/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily_nrt']
     }
-    return roots[db_name]
+    return roots[ds_name]
 
 
 def call_meta_class(file, listing=True):
@@ -73,21 +73,21 @@ def call_meta_class(file, listing=True):
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
 
-def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
+def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', level=None):
     """
     Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5)
 
     Parameters
     ----------
-    start_date: numpy.datetime64
+    start_date: numpy.datetime64 | None
         Start date for the research
-    stop_date: numpy.datetime64
+    stop_date: numpy.datetime64 | None
         Stop date for the research
-    db_name: str
+    ds_name: str
         Sensor name
     level: int | None
-        When db_name is SAR, precise the value of the product level. If it is None, get all SAR levels. Useless to give
-        it a value when db_name is something else then a SAR ('S1', 'RS2', 'RCM'). Values can be 1, 2 or None
+        When ds_name is SAR, precise the value of the product level. If it is None, get all SAR levels. Useless to give
+        it a value when ds_name is something else then a SAR ('S1', 'RS2', 'RCM'). Values can be 1, 2 or None
         (default value).
 
     Returns
@@ -159,22 +159,22 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
         2: 'L2'
     }
 
-    root_paths = get_acquisition_root_paths(db_name)
+    root_paths = get_acquisition_root_paths(ds_name)
     product_levels = []
     if level is not None:
         product_levels = [map_levels[level]]
-    elif (db_name == 'S1') or (db_name == 'RS2') or (db_name == 'RCM'):
+    elif (ds_name == 'S1') or (ds_name == 'RS2') or (ds_name == 'RCM'):
         product_levels = list(root_paths.keys())
     files = []
     schemes = date_schemes(start_date, stop_date)
-    if db_name == 'SMOS':
+    if ds_name == 'SMOS':
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
                                                 schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
         files = get_last_generation_files(files)
-    elif db_name == 'HY2':
+    elif ds_name == 'HY2':
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
@@ -185,7 +185,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
             start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
             if (stop_hy < start_date) or (start_hy > stop_date):
                 files.remove(f)
-    elif db_name == 'S1':
+    elif ds_name == 'S1':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
@@ -195,7 +195,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
                     elif lvl == 'L2':
                         files += glob.glob(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE", "*owi*.nc"))
-    elif db_name == 'RS2':
+    elif ds_name == 'RS2':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
@@ -205,7 +205,7 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
                     elif lvl == 'L2':
                         files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
                                                         schemes[scheme]['dayOfYear'], f"RS2*{scheme}*", "*owi*.nc"))
-    elif db_name == 'RCM':
+    elif ds_name == 'RCM':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
@@ -215,21 +215,24 @@ def get_all_comparison_files(start_date, stop_date, db_name='SMOS', level=None):
                     elif lvl == 'L2':
                         # TODO : search files when RCM level 2 exist
                         pass
-    elif db_name == 'ERA5':
+    elif ds_name == 'ERA5':
         for root_path in root_paths:
-            files = get_nearest_era5_files(start_date, stop_date, root_path)
-    elif db_name == 'WS':
+            if (start_date is not None) and (stop_date is not None):
+                files = get_nearest_era5_files(start_date, stop_date, root_path)
+            else:
+                files = glob.glob(root_path.replace('%Y', '*').replace('%m', '*').replace('%d', '*'))
+    elif ds_name == 'WS':
         for root_path in root_paths:
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
                                                 f"wsat_{scheme}*gz"))
-    elif db_name == 'SMAP':
+    elif ds_name == 'SMAP':
         for root_path in root_paths:
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
                                                 f"RSS_smap_*gz"))
 
-    if db_name in ['S1', 'RS2', 'RCM']:
+    if ds_name in ['S1', 'RS2', 'RCM']:
         for f in files.copy():
             start, stop = extract_start_stop_dates_from_sar(f)
             if (stop < start_date) or (start > stop_date):
@@ -308,17 +311,26 @@ def correct_dataset(dataset, lon_name='lon'):
 
 def date_schemes(start_date, stop_date):
     schemes = {}
-    date = np.datetime64(start_date, 's')
-    while date.astype('datetime64[D]') <= stop_date.astype('datetime64[D]'):
-        scheme = str(date.astype('datetime64[D]')).replace('-', '')
-        year = str(date.astype('datetime64[Y]'))
-        month = str(date.astype('datetime64[M]')).split('-')[1]
-        day_of_year = date.astype(datetime).strftime('%j')
-        date += np.timedelta64(1, 'D')
-        tmp_dic = {'year': year,
-                   'dayOfYear': day_of_year,
-                   'month': month}
-        schemes[scheme] = tmp_dic
+    if (start_date is not None) and (stop_date is not None):
+        date = np.datetime64(start_date, 's')
+        while date.astype('datetime64[D]') <= stop_date.astype('datetime64[D]'):
+            scheme = str(date.astype('datetime64[D]')).replace('-', '')
+            year = str(date.astype('datetime64[Y]'))
+            month = str(date.astype('datetime64[M]')).split('-')[1]
+            day_of_year = date.astype(datetime).strftime('%j')
+            date += np.timedelta64(1, 'D')
+            tmp_dic = {'year': year,
+                       'dayOfYear': day_of_year,
+                       'month': month}
+            schemes[scheme] = tmp_dic
+    else:
+        schemes = {
+            '*': {
+                'year': '*',
+                'dayOfYear': '*',
+                'month': '*'
+            }
+        }
     return schemes
 
 
