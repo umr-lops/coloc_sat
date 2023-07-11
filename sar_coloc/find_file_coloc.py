@@ -9,11 +9,12 @@ class FindFileColoc:
     # - Don't always use footprint for all intersection types (because sometimes it needs more processing than it
     # is necessary for a listing)
     # - Use a function to fill co-located files instead of using a property, so that it is computed once.
-    def __init__(self, product_id, ds_name='SMOS', level=None, delta_time=60):
+    def __init__(self, product_id, ds_name='SMOS', level=None, delta_time=60, listing=True):
         self.product_id = product_id
         self.ds_name = ds_name
         self.level = level
-        self.product = call_meta_class(product_id)
+        self.listing = listing
+        self.product = call_meta_class(product_id, listing=listing)
         self.delta_time = np.timedelta64(delta_time, 'm')
         self.comparison_files = self.get_comparison_files
         self.common_footprints = None
@@ -32,7 +33,7 @@ class FindFileColoc:
     def fill_footprints(self):
         _footprints = {}
         for file in self.comparison_files:
-            opened_file = call_meta_class(file)
+            opened_file = call_meta_class(file, listing=self.listing)
             if self.product.footprint.intersects(
                     opened_file.footprint(self.product.footprint, self.start_date, self.stop_date)):
                 _footprints[file] = self.product.footprint \
