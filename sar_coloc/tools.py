@@ -180,11 +180,12 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
                                                 schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
-        # remove files for which hour doesn't correspond to the selected times
-        for f in files.copy():
-            start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
-            if (stop_hy < start_date) or (start_hy > stop_date):
-                files.remove(f)
+        if (start_date is not None) and (stop_date is not None):
+            # remove files for which hour doesn't correspond to the selected times
+            for f in files.copy():
+                start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
+                if (stop_hy < start_date) or (start_hy > stop_date):
+                    files.remove(f)
     elif ds_name == 'S1':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
@@ -211,7 +212,7 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
                 for scheme in schemes:
                     if lvl == 'L1':
                         files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
-                                                        schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
+                                                        schemes[scheme]['dayOfYear'], f"RCM*{scheme}*"))
                     elif lvl == 'L2':
                         # TODO : search files when RCM level 2 exist
                         pass
@@ -230,13 +231,13 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
         for root_path in root_paths:
             for scheme in schemes:
                 files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
-                                                f"RSS_smap_*gz"))
-
-    if ds_name in ['S1', 'RS2', 'RCM']:
-        for f in files.copy():
-            start, stop = extract_start_stop_dates_from_sar(f)
-            if (stop < start_date) or (start > stop_date):
-                files.remove(f)
+                                                f"RSS_smap_*nc"))
+    if (start_date is not None) and (stop_date is not None):
+        if ds_name in ['S1', 'RS2', 'RCM']:
+            for f in files.copy():
+                start, stop = extract_start_stop_dates_from_sar(f)
+                if (stop < start_date) or (start > stop_date):
+                    files.remove(f)
     return files
 
 
@@ -583,3 +584,5 @@ def convert_mingmt(meta_acquisition):
         input_time = input_time.astype('timedelta64[m]')
     ds[meta_acquisition.time_name] = np.array(meta_acquisition.day_date, dtype="datetime64[ns]") + input_time
     return ds.drop_vars([meta_acquisition.minute_name])
+
+get_all_comparison_files(ds_name='SMAP')
