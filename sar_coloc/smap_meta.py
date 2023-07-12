@@ -152,5 +152,5 @@ class GetSmapMeta:
         Day date of the product
         """
         split_name = self.product_name.split('_')
-        str_date = ''.join(split_name[-5: -2])
+        str_date = ''.join(split_name[4: 7])
         return datetime.strptime(str_date, '%Y%m%d')
