@@ -15,7 +15,8 @@ class FindProductColoc:
         self.level = level
         self.listing = listing
         self.product = call_meta_class(product_id, listing=listing)
-        self.delta_time = np.timedelta64(delta_time, 'm')
+        self.delta_time = delta_time
+        self.delta_time_np = np.timedelta64(delta_time, 'm')
         self.comparison_files = self.get_comparison_files
         self.common_footprints = None
         #self.fill_footprints()
@@ -24,11 +25,11 @@ class FindProductColoc:
 
     @property
     def start_date(self):
-        return self.product.start_date - np.timedelta64(self.delta_time, 'm')
+        return self.product.start_date - self.delta_time_np
 
     @property
     def stop_date(self):
-        return self.product.stop_date + np.timedelta64(self.delta_time, 'm')
+        return self.product.stop_date + self.delta_time_np
 
     def fill_footprints(self):
         _footprints = {}
