@@ -28,7 +28,7 @@ class GetSmosMeta:
         numpy.datetime64
             Start time
         """
-        return min(np.unique(self.dataset.measurement_time))
+        return min(np.unique(self.dataset[self.time_name]))
 
     @property
     def stop_date(self):
@@ -40,7 +40,7 @@ class GetSmosMeta:
         numpy.datetime64
             Stop time
         """
-        return max(np.unique(self.dataset.measurement_time))
+        return max(np.unique(self.dataset[self.time_name]))
 
     @property
     def longitude_name(self):
