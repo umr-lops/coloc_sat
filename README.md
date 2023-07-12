@@ -1,6 +1,6 @@
-=========
-sar_coloc
-=========
+
+# sar_coloc
+
 
 
 .. image:: https://img.shields.io/pypi/v/sar_coloc.svg
@@ -23,8 +23,7 @@ Generate netcdf files from WindSat/SMOS/SMAP and SAR (L1/L2) data colocated.
 * Documentation: https://sar-coloc.readthedocs.io.
 
 
-Features
---------
+## Acknowledgements
+Special thanks to REMSS for their Windsat reader.
 
-* TODO
 
