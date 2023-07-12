@@ -1,10 +1,10 @@
 """Main module."""
 from .tools import get_all_comparison_files, call_meta_class
-from .intersection_tools import has_intersection
+from .intersection import ProductIntersection
 import numpy as np
 
 
-class FindFileColoc:
+class FindProductColoc:
     # Choices:
     # - Don't always use footprint for all intersection types (because sometimes it needs more processing than it
     # is necessary for a listing)
@@ -51,7 +51,8 @@ class FindFileColoc:
         for file in self.comparison_files:
             try:
                 opened_file = call_meta_class(file)
-                if has_intersection(self.product, opened_file, delta_time=self.delta_time):
+                intersecter = ProductIntersection(self.product, opened_file, delta_time=self.delta_time)
+                if intersecter.has_intersection:
                     _colocated_files.append(file)
             except FileNotFoundError:
                 pass
