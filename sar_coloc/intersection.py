@@ -2,6 +2,7 @@ import numpy as np
 import rasterio
 from shapely import MultiPoint
 import copy
+import xarray as xr
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty
 
@@ -11,14 +12,15 @@ class ProductIntersection:
         self.meta1 = meta1
         self.meta2 = meta2
         self.delta_time = delta_time
+        self.delta_time_np = np.timedelta64(delta_time, 'm')
         self.start_date = None
         self.stop_date = None
         self.datasets = {}  # TODO : fill with product names as keys
 
     @property
     def has_intersection(self):
-        times1 = (self.meta1.start_date - self.delta_time, self.meta1.stop_date + self.delta_time)
-        times2 = (self.meta2.start_date - self.delta_time, self.meta2.stop_date + self.delta_time)
+        times1 = (self.meta1.start_date - self.delta_time_np, self.meta1.stop_date + self.delta_time_np)
+        times2 = (self.meta2.start_date - self.delta_time_np, self.meta2.stop_date + self.delta_time_np)
         if times1[1] < times2[0] or times2[1] < times1[0]:
             return False  # No time match => no footprint
         else:
@@ -89,8 +91,7 @@ class ProductIntersection:
                 raise ValueError(
                     '`spatial_temporal_intersection` only can be applied on daily regular grid acquisition')
 
-        def verify_intersection(drg_acquisition, footprint):
-            _ds = spatial_temporal_intersection(drg_acquisition, polygon=footprint)
+        def verify_intersection(_ds):
             if (_ds is not None) and (not are_dimensions_empty(_ds)):
                 return True
             else:
@@ -109,17 +110,25 @@ class ProductIntersection:
                                 acquisition and a truncated one')
         fp = truncated.footprint
         if daily.has_orbited_segmentation:
+            li = []
             # list that store booleans to express if an orbit has an intersection
             orbit_intersections = []
             for orbit in daily.dataset[daily.orbit_segment_name].data:
                 sub_daily = copy.copy(daily)
                 # Select orbit in the dataset of sub_daily
                 sub_daily.set_dataset(sub_daily.dataset.sel(**{sub_daily.orbit_segment_name: orbit}))
-                orbit_intersections.append(verify_intersection(sub_daily, footprint=fp))
+                _ds = spatial_temporal_intersection(sub_daily, polygon=fp)
+                li.append(_ds.assign_coords(**{sub_daily.orbit_segment_name: orbit}))
+                orbit_intersections.append(verify_intersection(_ds))
+
+            self.datasets[daily.product_name] = xr.concat(li, dim=daily.orbit_segment_name)
+
             # if one of the orbit has an intersection, return True
             return any(orbit_intersections)
         else:
-            return verify_intersection(daily, footprint=fp)
+            _ds = spatial_temporal_intersection(daily, polygon=fp)
+            self.datasets[daily.product_name] = _ds
+            return verify_intersection(_ds)
 
     def intersection_swath_truncated_swath(self):
 
