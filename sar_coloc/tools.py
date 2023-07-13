@@ -86,8 +86,10 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
         Stop date for the research
     ds_name: str
         Sensor name
-    input_ds: None | list[str]
-        If we don't want to make the research in all the files, but only in a subset, it can be explicit there as a list.
+    input_ds: None | list[str] | str
+        If we don't want to make the research in all the files, but only in a subset,
+        it can be explicit there as a list of product paths.
+        It can also be explicit as a txt file path in which are located all the product paths
         Value is None if the research must be on all the files
     level: int | None
         When ds_name is SAR, precise the value of the product level. If it is None, get all SAR levels. Useless to give
@@ -103,6 +105,12 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
     def research_files(expression):
         if (input_ds is not None) and isinstance(input_ds, list):
             return match_expression_in_list(expression=expression, str_list=input_ds)
+        elif (input_ds is not None) and isinstance(input_ds, str):
+            with open(input_ds, 'r') as file:
+                lines = file.readlines()
+            file.close()
+            files_list = [line.strip() for line in lines]
+            return match_expression_in_list(expression=expression, str_list=files_list)
         elif input_ds is None:
             return glob.glob(expression)
         else:
