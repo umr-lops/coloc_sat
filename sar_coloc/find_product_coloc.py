@@ -9,10 +9,11 @@ class FindProductColoc:
     # - Don't always use footprint for all intersection types (because sometimes it needs more processing than it
     # is necessary for a listing)
     # - Use a function to fill co-located files instead of using a property, so that it is computed once.
-    def __init__(self, product_id, ds_name='SMOS', level=None, delta_time=60, listing=True):
+    def __init__(self, product_id, ds_name, input_ds=None, level=None, delta_time=60, listing=True):
         self.product_id = product_id
         self.ds_name = ds_name
         self.level = level
+        self.input_ds = input_ds
         self.listing = listing
         self.product = call_meta_class(product_id, listing=listing)
         self.delta_time = delta_time
@@ -79,7 +80,7 @@ class FindProductColoc:
             Comparison files
         """
         all_comparison_files = get_all_comparison_files(self.start_date, self.stop_date, ds_name=self.ds_name,
-                                                        level=self.level)
+                                                        input_ds=self.input_ds, level=self.level)
         if self.product_id in all_comparison_files:
             all_comparison_files.remove(self.product_id)
         return all_comparison_files

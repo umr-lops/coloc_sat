@@ -5,8 +5,9 @@ from shapely import wkt, Polygon
 import numpy as np
 import fsspec
 import itertools
-from datetime import datetime, timedelta
+from datetime import datetime
 from xsar.raster_readers import resource_strftime
+import re
 
 
 def unique(iterable):
@@ -73,7 +74,7 @@ def call_meta_class(file, listing=True):
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
 
-def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', level=None):
+def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', input_ds=None, level=None):
     """
     Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5)
 
@@ -85,6 +86,9 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
         Stop date for the research
     ds_name: str
         Sensor name
+    input_ds: None | list[str]
+        If we don't want to make the research in all the files, but only in a subset, it can be explicit there as a list.
+        Value is None if the research must be on all the files
     level: int | None
         When ds_name is SAR, precise the value of the product level. If it is None, get all SAR levels. Useless to give
         it a value when ds_name is something else then a SAR ('S1', 'RS2', 'RCM'). Values can be 1, 2 or None
@@ -95,6 +99,14 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
     List[str]
         Path of all existing products
     """
+
+    def research_files(expression):
+        if (input_ds is not None) and isinstance(input_ds, list):
+            return match_expression_in_list(expression=expression, str_list=input_ds)
+        elif input_ds is None:
+            return glob.glob(expression)
+        else:
+            raise ValueError('Type of input_ds must be a list or None')
 
     def get_last_generation_files(files_list):
         """
@@ -171,15 +183,15 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
-                                                schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
+                files += research_files(os.path.join(root_path, schemes[scheme]['year'],
+                                                     schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
         files = get_last_generation_files(files)
     elif ds_name == 'HY2':
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
-                                                schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
+                files += research_files(os.path.join(root_path, schemes[scheme]['year'],
+                                                     schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
         if (start_date is not None) and (stop_date is not None):
             # remove files for which hour doesn't correspond to the selected times
             for f in files.copy():
@@ -191,28 +203,30 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
                     if lvl == 'L1':
-                        files += glob.glob(os.path.join(root_path, '*', '*', schemes[scheme]['year'],
-                                                        schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE"))
+                        files += research_files(os.path.join(root_path, '*', '*', schemes[scheme]['year'],
+                                                             schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE"))
                     elif lvl == 'L2':
-                        files += glob.glob(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
-                                                        schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE", "*owi*.nc"))
+                        files += research_files(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
+                                                             schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE",
+                                                             "*owi*.nc"))
     elif ds_name == 'RS2':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
                     if lvl == 'L1':
-                        files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
-                                                        schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
+                        files += research_files(os.path.join(root_path, '*', schemes[scheme]['year'],
+                                                             schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
                     elif lvl == 'L2':
-                        files += glob.glob(os.path.join(root_path, '*', schemes[scheme]['year'],
-                                                        schemes[scheme]['dayOfYear'], f"RS2*{scheme}*", "*owi*.nc"))
+                        files += research_files(os.path.join(root_path, '*', schemes[scheme]['year'],
+                                                             schemes[scheme]['dayOfYear'], f"RS2*{scheme}*",
+                                                             "*owi*.nc"))
     elif ds_name == 'RCM':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
                     if lvl == 'L1':
-                        files += glob.glob(os.path.join(root_path, schemes[scheme]['year'],
-                                                        schemes[scheme]['dayOfYear'], f"RCM*{scheme}*"))
+                        files += research_files(os.path.join(root_path, schemes[scheme]['year'],
+                                                             schemes[scheme]['dayOfYear'], f"RCM*{scheme}*"))
                     elif lvl == 'L2':
                         # TODO : search files when RCM level 2 exist
                         pass
@@ -221,17 +235,17 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
             if (start_date is not None) and (stop_date is not None):
                 files = get_nearest_era5_files(start_date, stop_date, root_path)
             else:
-                files = glob.glob(root_path.replace('%Y', '*').replace('%m', '*').replace('%d', '*'))
+                files = research_files(root_path.replace('%Y', '*').replace('%m', '*').replace('%d', '*'))
     elif ds_name == 'WS':
         for root_path in root_paths:
             for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
-                                                f"wsat_{scheme}*gz"))
+                files += research_files(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
+                                                     f"wsat_{scheme}*gz"))
     elif ds_name == 'SMAP':
         for root_path in root_paths:
             for scheme in schemes:
-                files += glob.glob(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
-                                                f"RSS_smap_*nc"))
+                files += research_files(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
+                                                     f"RSS_smap_*nc"))
     if (start_date is not None) and (stop_date is not None):
         if ds_name in ['S1', 'RS2', 'RCM']:
             for f in files.copy():
@@ -239,6 +253,11 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', le
                 if (stop < start_date) or (start > stop_date):
                     files.remove(f)
     return files
+
+
+def match_expression_in_list(expression, str_list):
+    regex_expr = re.sub(r'\*', r'.*', expression)
+    return [path for path in str_list if re.match(regex_expr, path)]
 
 
 def get_nearest_era5_files(start_date, stop_date, resource, step=1):
@@ -584,5 +603,3 @@ def convert_mingmt(meta_acquisition):
         input_time = input_time.astype('timedelta64[m]')
     ds[meta_acquisition.time_name] = np.array(meta_acquisition.day_date, dtype="datetime64[ns]") + input_time
     return ds.drop_vars([meta_acquisition.minute_name])
-
-get_all_comparison_files(ds_name='SMAP')
