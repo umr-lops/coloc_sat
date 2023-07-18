@@ -1,6 +1,6 @@
 import numpy as np
 import rasterio
-from shapely import MultiPoint
+from shapely.geometry import MultiPoint
 import copy
 import xarray as xr
 

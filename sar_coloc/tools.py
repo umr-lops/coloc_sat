@@ -1,7 +1,8 @@
 import os
 import glob
 import xarray as xr
-from shapely import wkt, Polygon
+from shapely import wkt
+from shapely.geometry import Polygon
 import numpy as np
 import fsspec
 import itertools
