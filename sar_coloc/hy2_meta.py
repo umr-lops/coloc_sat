@@ -1,4 +1,4 @@
-from shapely import MultiPoint
+from shapely.geometry import MultiPoint
 
 from .tools import open_nc, correct_dataset
 import os
@@ -197,3 +197,16 @@ class GetHy2Meta:
             return True
         else:
             return False
+
+    @property
+    def mission_name(self):
+        """
+        Name of the mission (or model)
+
+        Returns
+        -------
+        str
+            Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
+        """
+        return "HY2"
+

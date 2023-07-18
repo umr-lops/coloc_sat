@@ -44,7 +44,7 @@ class GetSarMeta:
         sub-datasets
         """
         if self.is_safe:
-            if (self.satellite_name == 'S1') and self.multidataset:
+            if (self.mission_name == 'S1') and self.multidataset:
                 self._l1_info['dataset_names'] = [ds_name for ds_name in list(self._l1_info['meta']
                                                                                   .subdatasets.index)]
             else:
@@ -87,7 +87,7 @@ class GetSarMeta:
         bool
             Express if it is a multi dataset
         """
-        if self.satellite_name == 'S1':
+        if self.mission_name == 'S1':
             return self._l1_info['meta'].multidataset
         else:
             return False
@@ -117,7 +117,7 @@ class GetSarMeta:
             raise TypeError("datatree property only can be used for level 1 product")
 
     @property
-    def satellite_name(self):
+    def mission_name(self):
         """
         From the product_name, get the sensor name (ex : RS2, RCM, S1)
 

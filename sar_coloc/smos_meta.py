@@ -1,10 +1,9 @@
 import rasterio
-from shapely import Polygon
 
 from .tools import open_smos_file, correct_dataset, determine_dims
 import os
 import numpy as np
-from shapely.geometry import MultiPoint
+from shapely.geometry import MultiPoint, Polygon
 
 
 def extract_wind_speed(smos_dataset):
@@ -219,3 +218,15 @@ class GetSmosMeta:
             return True
         else:
             return False
+
+    @property
+    def mission_name(self):
+        """
+        Name of the mission (or model)
+
+        Returns
+        -------
+        str
+            Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
+        """
+        return "SMOS"

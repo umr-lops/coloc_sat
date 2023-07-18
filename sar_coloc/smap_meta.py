@@ -154,3 +154,16 @@ class GetSmapMeta:
         split_name = self.product_name.split('_')
         str_date = ''.join(split_name[4: 7])
         return datetime.strptime(str_date, '%Y%m%d')
+
+    @property
+    def mission_name(self):
+        """
+        Name of the mission (or model)
+
+        Returns
+        -------
+        str
+            Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
+        """
+        return "SMAP"
+
