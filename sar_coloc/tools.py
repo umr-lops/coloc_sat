@@ -23,29 +23,36 @@ def determine_dims(coords):
 
 def get_acquisition_root_paths(ds_name):
     roots = {
-        'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing',
-                 '/home/ref-smoswind-public/data/v3.0/l3/data/nrt'],
-        'HY2': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data'],
+        'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc',
+                 '/home/ref-smoswind-public/data/v3.0/l3/data/nrt/%Y/%(dayOfYear)/*%Y%m%d*.nc'],
+        'HY2': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data/%Y/%(dayOfYear)' +
+                '/*%Y%m%d*.nc'],
         'ERA5': [  # '/dataref/ecmwf/intranet/ERA5'
             '/home/ref-ecmwf/ERA5/%Y/%m/era_5-copernicus__%Y%m%d.nc'],
         'RS2': {
-            'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1'],
-            'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*'],
+            'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1/*/%Y/%(dayOfYear)/RS2*%Y%d%m*'],
+            'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*/*' +
+                   '/%Y/%(dayOfYear)/RS2OK*/RS2_*%Y%m%d*/post_processing/nclight_L2M/rs2*owi*%Y%m%d*000003*_ll_gd.nc'],
         },
         'S1': {
-            'L1': ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1'],
-            'L2': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*',
-                   '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings' +
-                   '/c39e79a/default/sentinel-1*'],
+            'L1': ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1/*/*' +
+                   '/%Y/%(dayOfYear)/S1*%Y%m%d*SAFE'],
+            'L2': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*/*/*/*/%Y/%(dayOfYear)' +
+                   '/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003*_ll_gd.nc',
+                   '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/' +
+                   'sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003' +
+                   '*_ll_gd.nc'],
         },
         'RCM': {
-            'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*'],
+            'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*/%Y/%(dayOfYear)/RCM*%Y%m%d*'],
             'L2': [],
         },
         'WS': ['/home/datawork-cersat-public/project/mpc-sentinel1/analysis/s1_data_analysis/project_rmarquar/' +
-               'wsat/data_compressed/dm'],
-        'SMAP': ['/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily',
-                 '/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily_nrt']
+               'wsat/data_compressed/dm/%Y/%(dayOfYear)/wsat_%Y%m%d*.gz'],
+        'SMAP': ['/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily/%Y/%(dayOfYear)' +
+                 '/RSS_smap_*.nc',
+                 '/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily_nrt/%Y' +
+                 '/%(dayOfYear)/RSS_smap_*.nc']
     }
     return roots[ds_name]
 
@@ -102,6 +109,30 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
     List[str]
         Path of all existing products
     """
+
+    def insert_date_and_day_of_year(str_expression, datetime_obj, day_of_year):
+        """
+        Convert special characters in an expression (like %m, %Y, %d and %(dayOfYear)) by the corresponding strings
+        (extracted from the date) and day of year (if one is needed)
+
+        Parameters
+        ----------
+        str_expression: str
+            Expression that contains special characters.
+            Example : '/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc'
+        datetime_obj: datetime.datetime
+            Date that need to be parsed in the expression
+        day_of_year: str | int
+            Day number of the year
+
+        Returns
+        -------
+        str
+            New expression with date and day of the year parsed.
+        """
+        str_expression = datetime_obj.strftime(str_expression)
+        str_expression = str_expression.replace('%(dayOfYear)', day_of_year)
+        return str_expression
 
     def research_files(expression):
         if (input_ds is not None) and isinstance(input_ds, list):
@@ -192,15 +223,19 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                files += research_files(os.path.join(root_path, schemes[scheme]['year'],
-                                                     schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
+                date = datetime.strptime(scheme, '%Y%m%d')
+                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
+                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                files += research_files(parsed_path)
         files = get_last_generation_files(files)
     elif ds_name == 'HY2':
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                files += research_files(os.path.join(root_path, schemes[scheme]['year'],
-                                                     schemes[scheme]['dayOfYear'], f"*{scheme}*nc"))
+                date = datetime.strptime(scheme, '%Y%m%d')
+                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
+                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                files += research_files(parsed_path)
         if (start_date is not None) and (stop_date is not None):
             # remove files for which hour doesn't correspond to the selected times
             for f in files.copy():
@@ -211,34 +246,26 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    if lvl == 'L1':
-                        files += research_files(os.path.join(root_path, '*', '*', schemes[scheme]['year'],
-                                                             schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE"))
-                    elif lvl == 'L2':
-                        files += research_files(os.path.join(root_path, '*', '*', '*', schemes[scheme]['year'],
-                                                             schemes[scheme]['dayOfYear'], f"S1*{scheme}*SAFE",
-                                                             "*owi*.nc"))
+                    date = datetime.strptime(scheme, '%Y%m%d')
+                    parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
+                                                              day_of_year=schemes[scheme]['dayOfYear'])
+                    files += research_files(parsed_path)
     elif ds_name == 'RS2':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    if lvl == 'L1':
-                        files += research_files(os.path.join(root_path, '*', schemes[scheme]['year'],
-                                                             schemes[scheme]['dayOfYear'], f"RS2*{scheme}*"))
-                    elif lvl == 'L2':
-                        files += research_files(os.path.join(root_path, '*', schemes[scheme]['year'],
-                                                             schemes[scheme]['dayOfYear'], f"RS2*{scheme}*",
-                                                             "*owi*.nc"))
+                    date = datetime.strptime(scheme, '%Y%m%d')
+                    parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
+                                                              day_of_year=schemes[scheme]['dayOfYear'])
+                    files += research_files(parsed_path)
     elif ds_name == 'RCM':
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    if lvl == 'L1':
-                        files += research_files(os.path.join(root_path, schemes[scheme]['year'],
-                                                             schemes[scheme]['dayOfYear'], f"RCM*{scheme}*"))
-                    elif lvl == 'L2':
-                        # TODO : search files when RCM level 2 exist
-                        pass
+                    date = datetime.strptime(scheme, '%Y%m%d')
+                    parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
+                                                              day_of_year=schemes[scheme]['dayOfYear'])
+                    files += research_files(parsed_path)
     elif ds_name == 'ERA5':
         for root_path in root_paths:
             if (start_date is not None) and (stop_date is not None):
@@ -248,13 +275,17 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
     elif ds_name == 'WS':
         for root_path in root_paths:
             for scheme in schemes:
-                files += research_files(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
-                                                     f"wsat_{scheme}*gz"))
+                date = datetime.strptime(scheme, '%Y%m%d')
+                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
+                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                files += research_files(parsed_path)
     elif ds_name == 'SMAP':
         for root_path in root_paths:
             for scheme in schemes:
-                files += research_files(os.path.join(root_path, schemes[scheme]['year'], schemes[scheme]['dayOfYear'],
-                                                     f"RSS_smap_*nc"))
+                date = datetime.strptime(scheme, '%Y%m%d')
+                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
+                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                files += research_files(parsed_path)
     if (start_date is not None) and (stop_date is not None):
         if ds_name in ['S1', 'RS2', 'RCM']:
             for f in files.copy():
