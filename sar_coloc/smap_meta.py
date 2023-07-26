@@ -167,3 +167,16 @@ class GetSmapMeta:
         """
         return "SMAP"
 
+    @property
+    def wind_name(self):
+        """
+        Name of an important wind variable in the dataset
+
+        Returns
+        -------
+        str
+            Wind variable name
+
+        """
+        return 'wind'
+

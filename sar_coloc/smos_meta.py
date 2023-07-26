@@ -230,3 +230,16 @@ class GetSmosMeta:
             Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
         """
         return "SMOS"
+
+    @property
+    def wind_name(self):
+        """
+        Name of an important wind variable in the dataset
+
+        Returns
+        -------
+        str
+            Wind variable name
+
+        """
+        return 'wind_speed'

@@ -152,5 +152,18 @@ class GetWindSatMeta:
         else:
             return False
 
+    @property
+    def wind_name(self):
+        """
+        Name of an important wind variable in the dataset
+
+        Returns
+        -------
+        str
+            Wind variable name
+
+        """
+        return 'wdir'
+
 
 
