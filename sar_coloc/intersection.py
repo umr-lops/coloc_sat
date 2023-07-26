@@ -86,7 +86,7 @@ class ProductIntersection:
                 dataset = geographic_intersection(open_acquisition, polygon)
                 dataset = extract_times_dataset(open_acquisition, time_name=open_acquisition.time_name, dataset=dataset,
                                                 start_date=self.start_date, stop_date=self.stop_date)
-                return dataset
+                return dataset.where(~np.isnan(dataset[open_acquisition.wind_name]), drop=True)
             else:
                 raise ValueError(
                     '`spatial_temporal_intersection` only can be applied on daily regular grid acquisition')
