@@ -2,7 +2,6 @@ from .tools import call_meta_class, get_all_comparison_files
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
 import numpy as np
-import pdb
 
 
 class GenerateColoc:
@@ -134,7 +133,6 @@ class GenerateColoc:
         if self.compare2products:
             return [self.product2_id]
         else:
-            breakpoint()
             all_comparison_files = get_all_comparison_files(self.product1_start_date, self.product1_stop_date,
                                                             ds_name=self.ds_name, input_ds=self.input_ds,
                                                             level=self.level)
