@@ -32,7 +32,7 @@ def get_acquisition_root_paths(ds_name):
         'RS2': {
             'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1/*/%Y/%(dayOfYear)/RS2*%Y%d%m*'],
             'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*/*' +
-                   '/%Y/%(dayOfYear)/RS2OK*/RS2_*%Y%m%d*/post_processing/nclight_L2M/rs2*owi*%Y%m%d*000003*_ll_gd.nc'],
+                   '/%Y/%(dayOfYear)/RS2_OK*/RS2_*%Y%m%d*/post_processing/nclight_L2M/rs2*owi*%Y%m%d*0003*_ll_gd.nc'],
         },
         'S1': {
             'L1': ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1/*/*' +
@@ -40,7 +40,7 @@ def get_acquisition_root_paths(ds_name):
             'L2': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*/*/*/*/%Y/%(dayOfYear)' +
                    '/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003*_ll_gd.nc',
                    '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/' +
-                   'sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003' +
+                   'sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*0003' +
                    '*_ll_gd.nc'],
         },
         'RCM': {
