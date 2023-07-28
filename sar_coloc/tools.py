@@ -643,3 +643,27 @@ def convert_mingmt(meta_acquisition):
         input_time = input_time.astype('timedelta64[m]')
     ds[meta_acquisition.time_name] = np.array(meta_acquisition.day_date, dtype="datetime64[ns]") + input_time
     return ds.drop_vars([meta_acquisition.minute_name])
+
+
+def extract_name_from_meta_class(obj):
+    """
+    Extract type of satellite (or name of a model).
+
+    Parameters
+    ----------
+    obj: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetSmapMeta | sar_coloc.GetHy2Meta |
+    sar_coloc.GetEra5Meta | sar_coloc.GetWindsatMeta
+        Meta object
+
+    Returns
+    -------
+    str
+        Type of a satellite
+    """
+    class_name = obj.__class__.__name__
+    pattern = r"Get(\w+)Meta"
+    match = re.match(pattern, class_name)
+    if match:
+        return match.group(1)
+    else:
+        return None
