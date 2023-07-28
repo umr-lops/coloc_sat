@@ -36,7 +36,7 @@ class GetSarMeta:
             else:
                 self._l1_info['submeta'][self._l1_info['dataset_names'][0]] = self._l1_info['meta']
         else:
-            raise TypeError("fill_submeta property only can be used for level 1 product")
+            raise self.WrongProductTypeError("fill_submeta property only can be used for level 1 product")
 
     def fill_dataset_names(self):
         """
@@ -50,7 +50,7 @@ class GetSarMeta:
             else:
                 self._l1_info['dataset_names'] = [self.product_path]
         else:
-            raise TypeError("fill_dataset_names property only can be used for level 1 product")
+            raise self.WrongProductTypeError("fill_dataset_names property only can be used for level 1 product")
 
     def fill_times(self):
         """
@@ -64,7 +64,7 @@ class GetSarMeta:
                     'stop_date': self._l1_info['submeta'][ds_name].stop_date}
                 self._l1_info['times'][ds_name] = tmp_dic
         else:
-            raise TypeError("fill_times property only can be used for level 1 product")
+            raise self.WrongProductTypeError("fill_times property only can be used for level 1 product")
 
     def fill_footprints(self):
         """
@@ -75,7 +75,7 @@ class GetSarMeta:
             for ds_name in self._l1_info['dataset_names']:
                 self._l1_info['footprints'][ds_name] = self._l1_info['submeta'][ds_name].footprint
         else:
-            raise TypeError("fill_footprints property only can be used for level 1 product")
+            raise self.WrongProductTypeError("fill_footprints property only can be used for level 1 product")
 
     @property
     def multidataset(self):
@@ -114,7 +114,7 @@ class GetSarMeta:
         if self.is_safe:
             return self._l1_info['submeta'][ds_name].dt
         else:
-            raise TypeError("datatree property only can be used for level 1 product")
+            raise self.WrongProductTypeError("datatree property only can be used for level 1 product")
 
     @property
     def mission_name(self):
@@ -226,3 +226,28 @@ class GetSarMeta:
 
         """
         return 'truncated_swath'
+
+    @property
+    def dataset(self):
+        """
+        Getter for SAR dataset.
+        NOTE: A SAR can be a L2 or a L1. This getter will be used in intersection functions. The choice has been made to
+        use L1 only for listings (so we only need the footprint), and use L2 for co-location product. The dataset is
+        needed only to create co-location product, so it is an alias of `self._l2_info`.
+
+        Returns
+        -------
+        xarray.Dataset
+            L2 SAR dataset
+        """
+        if self.is_safe:
+            raise self.WrongProductTypeError('`dataset` property can only be used for level 1 products')
+        else:
+            return self._l2_info
+
+    class WrongProductTypeError(Exception):
+        """
+        Used for raising Exceptions when a function / property is called whereas it wasn't created for the specified
+        type (Level 2 / Level 1)
+        """
+        pass
