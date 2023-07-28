@@ -19,8 +19,6 @@ class FindProductColoc:
         self.delta_time = delta_time
         self.delta_time_np = np.timedelta64(delta_time, 'm')
         self.comparison_files = self.get_comparison_files
-        self.common_footprints = None
-        #self.fill_footprints()
         self.colocated_files = None
         self.fill_colocated_files()
 
@@ -32,22 +30,6 @@ class FindProductColoc:
     def stop_date(self):
         return self.product.stop_date + self.delta_time_np
 
-    def fill_footprints(self):
-        _footprints = {}
-        for file in self.comparison_files:
-            opened_file = call_meta_class(file, listing=self.listing)
-            if self.product.footprint.intersects(
-                    opened_file.footprint(self.product.footprint, self.start_date, self.stop_date)):
-                _footprints[file] = self.product.footprint \
-                    .intersection(opened_file.footprint(self.product.footprint, self.start_date, self.stop_date))
-            else:
-                _footprints[file] = None
-        # if no common values, let the footprint with the value None
-        if all(value is None for value in _footprints.values()):
-            pass
-        else:
-            self.common_footprints = _footprints
-
     def fill_colocated_files(self):
         _colocated_files = []
         for file in self.comparison_files:
@@ -58,7 +40,6 @@ class FindProductColoc:
                     _colocated_files.append(file)
             except FileNotFoundError:
                 pass
-            #print(f"The file {file} has been treated. \n Progression : {(self.comparison_files.index(file) +1 ) * 100 / len(self.comparison_files)}\n ########")
         if len(_colocated_files) > 0:
             self.colocated_files = _colocated_files
 
