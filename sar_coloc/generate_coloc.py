@@ -1,4 +1,4 @@
-from .tools import call_meta_class, get_all_comparison_files
+from .tools import call_meta_class, get_all_comparison_files, extract_name_from_meta_class
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
 import numpy as np
@@ -102,9 +102,25 @@ class GenerateColoc:
 
     @property
     def listing(self):
+        """
+        Know if a listing must be created
+
+        Returns
+        -------
+        bool
+            True if a listing must be created
+        """
         return self._listing
 
     def product_generation(self, intersection):
+        """
+        Know if a co-location product must be created
+
+        Returns
+        -------
+        bool
+            True if a co-location product must be created
+        """
         meta1 = intersection.meta1
         meta2 = intersection.meta2
         if isinstance(meta1, GetSarMeta) or isinstance(meta2, GetSarMeta):
@@ -112,12 +128,70 @@ class GenerateColoc:
         else:
             return self._product_generation
 
+    def listing_filename(self, intersection):
+        """
+        Get the filename of the listing file that must be created
+
+        Parameters
+        ----------
+        intersection: sar_coloc.ProductIntersection
+            intersection between 2 products
+
+        Returns
+        -------
+        str
+            Filename of the listing file that must be created
+        """
+        if self._listing_filename is not None:
+            return self._listing_filename
+        else:
+            meta1_name = extract_name_from_meta_class(intersection.meta1).upper()
+            meta2_name = extract_name_from_meta_class(intersection.meta2).upper()
+            return f"listing_coloc_{meta1_name}_{meta2_name}_{self.delta_time}.txt"
+
+    def colocation_filename(self, intersection):
+        """
+        Get the filename of the co-location product that must be created
+
+        Parameters
+        ----------
+        intersection: sar_coloc.ProductIntersection
+            intersection between 2 products
+
+        Returns
+        -------
+        str
+            Filename of the co-location product that must be created
+        """
+        if self._colocation_filename is not None:
+            return self._colocation_filename
+        else:
+            name1 = intersection.meta1.product_name
+            name2 = intersection.meta2.product_name
+            return f"sat_coloc_{name1}__{name2}.nc"
+
     @property
     def product1_start_date(self):
+        """
+        Get start date of the product1 considering the delta time
+
+        Returns
+        -------
+        numpy.datetime64
+            Start date of the product1 considering the delta time
+        """
         return self.product1.start_date - self.delta_time_np
 
     @property
     def product1_stop_date(self):
+        """
+        Get stop date of the product1 considering the delta time
+
+        Returns
+        -------
+        numpy.datetime64
+            stop date of the product1 considering the delta time
+        """
         return self.product1.stop_date + self.delta_time_np
 
     @property
@@ -141,6 +215,11 @@ class GenerateColoc:
             return all_comparison_files
 
     def fill_intersections(self):
+        """
+        Fill a dictionary as `self.intersections` with intersections (`sar_coloc.ProductIntersection`) between
+        `self.product1_id` and products that are in `self.comparison_files`. If no products are in
+        `self.comparison_files`, so `self.intersections` remains with None value.
+        """
         _intersections = {}
         for file in self.comparison_files:
             try:
@@ -153,6 +232,11 @@ class GenerateColoc:
             self.intersections = _intersections
 
     def fill_colocated_files(self):
+        """
+        Fill a dictionary as `self.colocated_files` with file paths of products from `self.comparison_files` that can be
+        colocated with `self.product1_id`. If no products are in `self.comparison_files`, so `self.colocated_files`
+        remains with None value.
+        """
         if self.intersections is not None:
             _colocated_files = []
             for filename, intersection in self.intersections.items():
@@ -163,6 +247,14 @@ class GenerateColoc:
 
     @property
     def has_coloc(self):
+        """
+        Know if the product `self.product1_id` has co-located products in `self.comparison_files`
+
+        Returns
+        -------
+        bool
+            True if the product has co-located products
+        """
         if self.colocated_files is None:
             return False
         else:
