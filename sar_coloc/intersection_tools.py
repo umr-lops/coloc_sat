@@ -1,3 +1,9 @@
+import pyproj
+from shapely.geometry import Polygon, MultiPoint
+from itertools import product
+import math
+
+
 def extract_times_dataset(open_acquisition, time_name='time', dataset=None, start_date=None, stop_date=None):
     """
     Extract a sub-dataset from a dataset of an acquisition to get a time dataset within 2 bounds (dates). If one of
@@ -52,3 +58,58 @@ def are_dimensions_empty(dataset):
         if len(dataset[dimension]) != 0:
             return False  # One dimension isn't empty => there are values
     return True
+
+
+def get_polygon_area_in_km_squared(polygon):
+    """
+    From a polygon, get its area in square kilometers
+
+    Parameters
+    ----------
+    polygon: shapely.geometry.polygon.Polygon
+        Shapely polygon (footprint for example)
+
+    Returns
+    -------
+    int
+        Area of the polygon in square kilometers
+    """
+    # Define the projection for converting latitude/longitude to meters (EPSG:4326 -> EPSG:3857)
+    proj = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+    # Convert the polygon's coordinates from latitude/longitude to meters
+    projected_polygon = Polygon(proj.itransform(polygon.exterior.coords))
+
+    # Calculate the area of the polygon in square meters
+    area_in_square_meters = projected_polygon.area
+
+    # Convert the area from square meters to square kilometers
+    area_in_square_km = area_in_square_meters / 1e6
+
+    return area_in_square_km
+
+
+def get_footprint_from_ll_ds(acquisition, ds=None):
+    """
+    Get the footprint from a dataset in an acquisition.
+
+    Parameters
+    ----------
+    acquisition: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetEra5Meta | sar_coloc.GetHy2Meta | sar_coloc.GetSmapMeta | sar_coloc.GetWindsatMeta
+        Meta acquisition.
+    ds: xarray.Dataset
+        Ds on which footprint can be extracted from longitude and latitude vars. If no one is explicited (value at None)
+        , dataset is taken from `acquisition.dataset`.
+
+    Returns
+    -------
+    shapely.geometry.polygon.Polygon
+        Footprint of the dataset
+    """
+    if ds is None:
+        ds = acquisition.dataset
+    flatten_lon = ds[acquisition.longitude_name].data.flatten()
+    flatten_lat = ds[acquisition.latitude_name].data.flatten()
+    mpt_coords = [(lon, lat) for lon, lat in product(flatten_lon, flatten_lat) if not (math.isnan(lon) or
+                                                                                       math.isnan(lat))]
+    return MultiPoint(mpt_coords).convex_hull
