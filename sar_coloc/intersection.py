@@ -1,21 +1,23 @@
 import numpy as np
 import rasterio
-from shapely.geometry import MultiPoint
 import copy
 import xarray as xr
 
-from .intersection_tools import extract_times_dataset, are_dimensions_empty
+from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
+    get_polygon_area_in_km_squared
 
 
 class ProductIntersection:
-    def __init__(self, meta1, meta2, delta_time=60):
+    def __init__(self, meta1, meta2, delta_time=60, minimal_area=1600):
         self.meta1 = meta1
         self.meta2 = meta2
         self.delta_time = delta_time
+        self.minimal_area = minimal_area
         self.delta_time_np = np.timedelta64(delta_time, 'm')
         self.start_date = None
         self.stop_date = None
-        self.datasets = {}  # TODO : fill with product names as keys
+        self.datasets = {}  # TODO : fill SAR datasets
+        self.common_footprint = None
 
     @property
     def has_intersection(self):
@@ -30,7 +32,10 @@ class ProductIntersection:
                 and (self.meta2.acquisition_type == 'truncated_swath'):
             fp1 = self.meta1.footprint
             fp2 = self.meta2.footprint
-            return fp1.intersects(fp2)
+            is_intersected = fp1.intersects(fp2)
+            if is_intersected:
+                self.fill_common_footprint(fp1.intersection(fp2))
+            return self.is_considered_as_intersected
         elif ((self.meta1.acquisition_type == 'truncated_swath') and
               (self.meta2.acquisition_type == 'daily_regular_grid')) or \
                 ((self.meta2.acquisition_type == 'truncated_swath') and
@@ -46,6 +51,21 @@ class ProductIntersection:
             # if it is a model so there is data every day and worldwide => file can be co-located
             # (model file has been chosen depending on the date)
             return True
+
+    def fill_common_footprint(self, footprint):
+        if self.common_footprint is None:
+            self.common_footprint = footprint
+        else:
+            self.common_footprint = self.common_footprint.union(footprint)
+
+    @property
+    def is_considered_as_intersected(self):
+        if self.common_footprint is None:
+            return False
+        elif get_polygon_area_in_km_squared(self.common_footprint) >= self.minimal_area:
+            return True
+        else:
+            return False
 
     def intersection_drg_truncated_swath(self):
         def rasterize_polygon(open_acquisition, polygon):
@@ -93,7 +113,11 @@ class ProductIntersection:
 
         def verify_intersection(_ds):
             if (_ds is not None) and (not are_dimensions_empty(_ds)):
-                return True
+                poly = get_footprint_from_ll_ds(daily, _ds)
+                is_intersected = poly.intersects(fp)
+                if is_intersected:
+                    self.fill_common_footprint(poly.intersection(fp))
+                return self.is_considered_as_intersected
             else:
                 return False
 
@@ -165,13 +189,18 @@ class ProductIntersection:
             # and where time criteria is respected
             _ds = spatial_temporal_intersection(swath_acquisition, polygon=footprint)
             if (_ds is not None) and (not are_dimensions_empty(_ds)):
-                flatten_lon = _ds[swath_acquisition.longitude_name].data.flatten()
+                """flatten_lon = _ds[swath_acquisition.longitude_name].data.flatten()
                 flatten_lat = _ds[swath_acquisition.latitude_name].data.flatten()
                 # Create a multipoint from swath lon/lat that are in the box and respect time criteria
                 mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)
                                   if (np.isfinite(lon) and np.isfinite(lat))])
                 # Verify if a part of this multipoint can be intersected with the truncated swath footprint
-                return mpt.intersects(footprint)
+                return mpt.intersects(footprint)"""
+                poly = get_footprint_from_ll_ds(swath_acquisition, _ds)
+                is_intersected = poly.intersects(footprint)
+                if is_intersected:
+                    self.fill_common_footprint(poly.intersection(footprint))
+                return self.is_considered_as_intersected
             else:
                 return False
 
