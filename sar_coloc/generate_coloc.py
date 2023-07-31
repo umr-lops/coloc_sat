@@ -17,6 +17,9 @@ class GenerateColoc:
             Folder path where listing and / or co-location products will be created
         delta_time : int
             Maximum time (in minutes) that can separate two product acquisitions.
+        minimal_area : int | str
+            Minimal intersection area restricted for a valid co-location. If it is an integer, so it is expressed in
+            square kilometers. If it is a string, so the unit can be expressed as follows: `1600km2` or `1600000000m2`.
         listing: bool
             True if a listing of the co-located_files must be created. Default value is False
         product_generation: bool
@@ -50,7 +53,7 @@ class GenerateColoc:
             Default value is None.
         """
 
-    def __init__(self, product1_id, destination_folder, delta_time=60, listing=False,
+    def __init__(self, product1_id, destination_folder, delta_time=60, minimal_area=1600, listing=False,
                  product_generation=True, **kwargs):
         # Define descriptive attributes
         self.level = kwargs.get('level', None)
@@ -64,6 +67,7 @@ class GenerateColoc:
         else:
             self.product2 = None
         self.delta_time = delta_time
+        self._minimal_area = minimal_area
         self.delta_time_np = np.timedelta64(delta_time, 'm')
         self._listing = listing
         self._product_generation = product_generation
@@ -76,6 +80,29 @@ class GenerateColoc:
         self.colocated_files = None
         self.fill_intersections()
         self.fill_colocated_files()
+
+    @property
+    def minimal_area(self):
+        """
+        Get minimal intersection area restricted for a valid co-location. Expressed in square kilometers.
+
+        Returns
+        -------
+        int
+            Minimal area intersection in square kilometers
+        """
+        if isinstance(self._minimal_area, int):
+            return self._minimal_area
+        elif isinstance(self._minimal_area, str):
+            if self._minimal_area.endswith('m2'):
+                return int(self._minimal_area.replace('m2', '')) * 1e6
+            elif self._minimal_area.endswith('km2'):
+                return int(self._minimal_area.replace('km2', ''))
+            else:
+                raise ValueError('minimal_area expressed as a string in argument must end by km2 or m2')
+        else:
+            raise TypeError("minimal_area expressed as an argument must be a string or an integer. Please refer to " +
+                            "the documentation")
 
     @property
     def compare2products(self):
@@ -224,7 +251,8 @@ class GenerateColoc:
         for file in self.comparison_files:
             try:
                 opened_file = call_meta_class(file)
-                intersecter = ProductIntersection(self.product1, opened_file, delta_time=self.delta_time)
+                intersecter = ProductIntersection(self.product1, opened_file, delta_time=self.delta_time,
+                                                  minimal_area=self.minimal_area)
                 _intersections[file] = intersecter
             except FileNotFoundError:
                 pass
