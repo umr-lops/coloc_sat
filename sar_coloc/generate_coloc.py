@@ -7,6 +7,7 @@ import numpy as np
 class GenerateColoc:
     """
         Class that generates co-locations. It can create listings of co-located products and/or generate co-location products.
+        # TODO : 2 options dans le titre (+ dire arguments des deux options)
 
         Parameters
         ----------
@@ -51,7 +52,7 @@ class GenerateColoc:
         colocation_filename : str | None, optional
             Name of the co-location product that must be created. It is useless to specify one if `product_generation` is False.
             Default value is None.
-        """
+    """
 
     def __init__(self, product1_id, destination_folder, delta_time=60, minimal_area=1600, listing=False,
                  product_generation=True, **kwargs):
@@ -150,8 +151,16 @@ class GenerateColoc:
         """
         meta1 = intersection.meta1
         meta2 = intersection.meta2
-        if isinstance(meta1, GetSarMeta) or isinstance(meta2, GetSarMeta):
-            return False
+        if isinstance(meta1, GetSarMeta):
+            if meta1.is_safe:
+                return False
+            else:
+                return self._product_generation
+        if isinstance(meta2, GetSarMeta):
+            if meta2.is_safe:
+                return False
+            else:
+                return self._product_generation
         else:
             return self._product_generation
 
