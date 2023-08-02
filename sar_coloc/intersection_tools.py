@@ -130,3 +130,20 @@ def get_transform(ds, lon_name, lat_name):
     transform = Affine(pixel_spacing_lon, 0.0, ds.coords[lon_name][0].values,
                        0.0, pixel_spacing_lat, ds.coords[lat_name][0].values)
     return transform
+
+
+def get_common_points(dataset1, dataset2):
+    # Obtenir les noms des variables présentes dans les deux datasets
+    common_variable_names = set(dataset1.data_vars.keys()) & set(dataset2.data_vars.keys())
+
+    # Créer un masque pour chaque variable ayant le même nom dans les deux datasets
+    for variable_name in common_variable_names:
+        mask1 = ~dataset1[variable_name].isnull()
+        mask2 = ~dataset2[variable_name].isnull()
+        common_mask = mask1 & mask2
+
+        # Appliquer le masque à chaque dataset
+        dataset1[variable_name] = dataset1[variable_name].where(common_mask)
+        dataset2[variable_name] = dataset2[variable_name].where(common_mask)
+
+    return dataset1, dataset2
