@@ -6,7 +6,7 @@ import rasterio
 import shapely
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
-    get_polygon_area_in_km_squared, get_transform
+    get_polygon_area_in_km_squared, get_transform, get_common_points
 
 
 logger = logging.getLogger(__name__)
@@ -454,7 +454,8 @@ class ProductIntersection:
             if self.resampled_datasets is None:
                 self.fill_resampled_datasets()
                 _tmp_dic = {}
-                dataset1_common_zone, dataset2_common_zone = self.get_common_zone
+                # put 2 datasets in their common zone and keep only common points for each variable
+                dataset1_common_zone, dataset2_common_zone = get_common_points(self.get_common_zone)
                 _tmp_dic[self.meta1.product_name] = dataset1_common_zone
                 _tmp_dic[self.meta2.product_name] = dataset2_common_zone
                 self.common_zone_datasets = _tmp_dic
