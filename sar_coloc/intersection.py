@@ -1,10 +1,15 @@
 import numpy as np
-import rasterio
 import copy
 import xarray as xr
+import logging
+import rasterio
+import shapely
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
-    get_polygon_area_in_km_squared
+    get_polygon_area_in_km_squared, get_transform
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProductIntersection:
@@ -16,8 +21,10 @@ class ProductIntersection:
         self.delta_time_np = np.timedelta64(delta_time, 'm')
         self.start_date = None
         self.stop_date = None
-        self.datasets = {}  # TODO : fill SAR datasets
+        self._datasets = {}
         self.common_footprint = None
+        self.resampled_datasets = None
+        self.common_zone_datasets = None
 
     @property
     def has_intersection(self):
@@ -51,6 +58,16 @@ class ProductIntersection:
             # if it is a model so there is data every day and worldwide => file can be co-located
             # (model file has been chosen depending on the date)
             return True
+        elif (self.meta1.acquisition_type == 'swath') and (self.meta2.acquisition_type == 'swath'):
+            return self.intersection_non_truncated_swath_non_truncated_swath()
+        elif ((self.meta1.acquisition_type == 'daily_regular_grid') and
+              (self.meta2.acquisition_type == 'daily_regular_grid')):
+            return self.intersection_drg_drg()
+        elif ((self.meta1.acquisition_type == 'daily_regular_grid') and
+              (self.meta2.acquisition_type == 'swath')) or \
+                ((self.meta2.acquisition_type == 'daily_regular_grid') and
+                 (self.meta1.acquisition_type == 'swath')):
+            return self.intersection_drg_non_truncated_swath()
 
     def fill_common_footprint(self, footprint):
         if self.common_footprint is None:
@@ -145,13 +162,13 @@ class ProductIntersection:
                 li.append(_ds.assign_coords(**{sub_daily.orbit_segment_name: orbit}))
                 orbit_intersections.append(verify_intersection(_ds))
 
-            self.datasets[daily.product_name] = xr.concat(li, dim=daily.orbit_segment_name)
+            self._datasets[daily.product_name] = xr.concat(li, dim=daily.orbit_segment_name)
 
             # if one of the orbit has an intersection, return True
             return any(orbit_intersections)
         else:
             _ds = spatial_temporal_intersection(daily, polygon=fp)
-            self.datasets[daily.product_name] = _ds
+            self._datasets[daily.product_name] = _ds
             return verify_intersection(_ds)
 
     def intersection_swath_truncated_swath(self):
@@ -233,4 +250,212 @@ class ProductIntersection:
             return verify_intersection(swath, footprint=fp)
 
     def intersection_drg_non_truncated_swath(self):
-        pass
+        raise NotImplementedError("This property isn't yet implemented")
+
+    def intersection_drg_drg(self):
+        raise NotImplementedError("This property isn't yet implemented")
+
+    def intersection_non_truncated_swath_non_truncated_swath(self):
+        raise NotImplementedError("This property isn't yet implemented")
+
+    @property
+    def coloc_resample(self):
+        """
+        Resample 2 satellite datasets from `self.meta1`and `self.meta2`. If a dataset exists in `self._datasets`
+        (it means that a meta dataset has been intersected temporally and spatially), so this one is chosen.
+        Notes : it uses `rasterio.reproject_match`
+
+        Returns
+        -------
+        Dict[str, Union[xarray.Dataset, str]]
+            Two first values of the dictionary are resampled datasets from meta1 and meta 2.  Last value is a string
+            that precise which dataset of both has been reprojected.
+        """
+        logger.info("Starting resampling.")
+        meta1 = self.meta1
+        meta2 = self.meta2
+        existing_dataset_keys = list(self._datasets.keys())
+        logger.info("Getting datasets.")
+        # Getting datasets
+        if meta1.product_name in existing_dataset_keys:
+            dataset1 = self._datasets[meta1.product_name]
+        else:
+            dataset1 = meta1.dataset
+        logger.info("meta1 dataset opened.")
+        if meta2.product_name in existing_dataset_keys:
+            dataset2 = self._datasets[meta2.product_name]
+        else:
+            dataset2 = meta2.dataset
+        logger.info("meta1 dataset opened.")
+
+        # Set crs if not defined
+        if dataset1.rio.crs is None:
+            dataset1.rio.write_crs(4326, inplace=True)
+        if dataset2.rio.crs is None:
+            dataset2.rio.write_crs(4326, inplace=True)
+        logger.info("Renaming datasets coordinates into xy.")
+        # replace lon and lat with x and y (necessary to make reproject_match() working)
+        dataset1 = dataset1.rename({meta1.longitude_name: 'x', meta1.latitude_name: 'y'})
+        dataset2 = dataset2.rename({meta2.longitude_name: 'x', meta2.latitude_name: 'y'})
+        logger.info("Done renaming datasets coordinates into xy.")
+
+        pixel_spacing_lon1 = dataset1.coords["x"][1] - dataset1.coords["x"][0]
+        pixel_spacing_lat1 = dataset1.coords["y"][1] - dataset1.coords["y"][0]
+        pixel_spacing_lon2 = dataset2.coords["x"][1] - dataset2.coords["x"][0]
+        pixel_spacing_lat2 = dataset2.coords["y"][1] - dataset2.coords["y"][0]
+
+        logger.info(
+            "Modifying dataset coordinates in range 0-360 if coordinates do not cross Greenwich Meridian (lon = 0).")
+        if (dataset1.x[0].values < 0 and dataset1.x[len(dataset1.x) - 1].values > 180) or (
+                dataset2.x[0].values < 0 and dataset2.x[len(dataset2.x) - 1].values > 180):
+            meridian_datasets = True
+            logger.info("datasets cross Greenwich Meridian, dataset coordinated will be modified after reprojection.")
+        else:
+            dataset1["x"] = dataset1["x"] % 360
+            dataset2["x"] = dataset2["x"] % 360
+            meridian_datasets = False
+        logger.info("Done modifying dataset coordinates.")
+
+        logger.info("Reprojecting dataset with higher resolution to make it match with the lower resolution one.")
+        if pixel_spacing_lon1 * pixel_spacing_lat1 <= pixel_spacing_lon2 * pixel_spacing_lat2:
+            dataset1 = dataset1.rio.reproject_match(dataset2)
+            reprojected_dataset = "dataset1"
+            logger.info("dataset1 reprojected")
+        else:
+            dataset2 = dataset2.rio.reproject_match(dataset1)
+            reprojected_dataset = "dataset2"
+            logger.info("dataset2 reprojected.")
+        logger.info("Done reprojecting dataset.")
+
+        if meridian_datasets:
+            logger.info(
+                "Modifying dataset coordinated in range 0-360 if coordinates cross Greenwich Meridian (lon = 0).")
+            dataset1["x"] = dataset1["x"] % 360
+            dataset2["x"] = dataset2["x"] % 360
+            logger.info("Done modifying dataset coordinates.")
+
+        logger.info("Renaming dataset coordinates into lon-lat.")
+        dataset1 = dataset1.rename({'x': meta1.longitude_name, 'y': meta1.latitude_name})
+        dataset2 = dataset2.rename({'x': meta2.longitude_name, 'y': meta2.latitude_name})
+        logger.info("Done renaming dataset coordinates into lon-lat.")
+
+        logger.info("Done resampling.")
+        return {'meta1': dataset1, 'meta2': dataset2, 'reprojected_dataset': reprojected_dataset}
+
+    @property
+    def get_common_zone(self):
+        """
+        Search for common zone between two resampled datasets (located in `self.resampled_datasets`); and put these two
+        dataset in this common zone.
+
+        Returns
+        -------
+        xarray.Dataset, xarray.Dataset
+            Resampled datasets located in a common zone (longitude and latitude).
+        """
+        logger.info("Starting getting common zone.")
+        logger.info('Start getting resampled datasets')
+        dataset1 = self.resampled_datasets['meta1']
+        dataset2 = self.resampled_datasets['meta2']
+        reprojected_dataset = self.resampled_datasets['reprojected_dataset']
+        logger.info('Done getting resampled datasets')
+
+        meta1 = self.meta1
+        meta2 = self.meta1
+
+        # transform polygons in range 0-360
+        def shape360(lon, lat):
+            """shapely shape to 0 360 (for shapely.ops.transform)"""
+            orig_type = type(lon)
+            lon = np.array(lon) % 360
+            return tuple([orig_type(lon), lat])
+
+        logger.info("Getting intersection of polygons.")
+        poly_intersection = self.common_footprint
+        logger.info("Done getting intersection of polygons.")
+
+        logger.info("Modifying polygons coords range into 0-360.")
+        poly_intersection = shapely.ops.transform(lambda x, y, z=None: shape360(x, y), poly_intersection)
+        logger.info("Done modifying polygons coords range into 0-360.")
+
+        logger.info("Calculating geometry_mask of reprojected dataset.")
+        if reprojected_dataset == "dataset1":
+            lon_name = meta1.longitude_name
+            lat_name = meta1.latitude_name
+            geometry_mask = rasterio.features.geometry_mask([poly_intersection],
+                                                            out_shape=(dataset1[lat_name].shape[0],
+                                                                       dataset1[lon_name].shape[0]),
+                                                            transform=get_transform(dataset1, lon_name, lat_name),
+                                                            invert=True, all_touched=True)
+        elif reprojected_dataset == "dataset2":
+            lon_name = meta2.longitude_name
+            lat_name = meta2.latitude_name
+            geometry_mask = rasterio.features.geometry_mask([poly_intersection],
+                                                            out_shape=(dataset2[lat_name].shape[0],
+                                                                       dataset2[lon_name].shape[0]),
+                                                            transform=get_transform(dataset2, lon_name, lat_name),
+                                                            invert=True, all_touched=True)
+        logger.info("Done calculating geometry_mask of reprojected dataset.")
+        logger.info("Applying geometry_mask on datasets.")
+        # Keep only values in common zone
+        dataset1_common_zone = dataset1.where(geometry_mask)
+        dataset2_common_zone = dataset2.where(geometry_mask)
+        logger.info("Done applying geometry_mask on datasets.")
+
+        logger.info("Reshaping datasets to keep common zone.")
+        # reshape to reduce dataset size (avoid having too much non-necessary nan)
+        # find lon_min, lon_max, lat_min and lat_max
+        lon2D, lat2D = np.meshgrid(dataset1_common_zone.lon, dataset1_common_zone.lat)
+        lon2D[~geometry_mask] = np.nan
+        lat2D[~geometry_mask] = np.nan
+        # We need to round these values to avoid a bug which can occur when merging datasets
+        lon_min = round(np.nanmin(lon2D), 6)
+        lon_max = round(np.nanmax(lon2D), 6)
+        lat_min = round(np.nanmin(lat2D), 6)
+        lat_max = round(np.nanmax(lat2D), 6)
+        # reshape
+        dataset1_common_zone = dataset1_common_zone.where(
+            (dataset1_common_zone.lon > lon_min) & (dataset1_common_zone.lon < lon_max) & (
+                    dataset1_common_zone.lat > lat_min) & (dataset1_common_zone.lat < lat_max), drop=True)
+        dataset2_common_zone = dataset2_common_zone.where(
+            (dataset2_common_zone.lon > lon_min) & (dataset2_common_zone.lon < lon_max) & (
+                    dataset2_common_zone.lat > lat_min) & (dataset2_common_zone.lat < lat_max), drop=True)
+        dataset1_common_zone = dataset1_common_zone.assign_attrs({"polygon_common_zone": str(poly_intersection)})
+        logger.info("Done reshaping datasets to keep common zone.")
+
+        logger.info("Modifying datasets coords in range -180,180.")
+        dataset1_common_zone = dataset1_common_zone.assign_coords(lon=(((dataset1_common_zone.lon + 180) % 360) - 180))
+        dataset2_common_zone = dataset2_common_zone.assign_coords(lon=(((dataset2_common_zone.lon + 180) % 360) - 180))
+        logger.info("Modifying datasets coords in range -180,180.")
+
+        logger.info("Done getting common zone.")
+        return dataset1_common_zone, dataset2_common_zone
+
+    def fill_resampled_datasets(self):
+        """
+        Fills resampled datasets in the attribute `self.resampled_datasets`
+        """
+        self.resampled_datasets = self.coloc_resample
+
+    @property
+    def coloc_product_datasets(self):
+        """
+        Get final co-located product datasets.
+        Notes :
+            It also fills the common zone datasets in the attribute `self.common_zone_datasets` when they don't exist.
+            It also fills the resampled datasets in the attribute `self.resampled_datasets` when they don't exist.
+
+        Returns
+        -------
+        Dict[str, xarray.Dataset]
+           Final co-located product datasets.
+        """
+        if self.common_zone_datasets is None:
+            if self.resampled_datasets is None:
+                self.fill_resampled_datasets()
+                _tmp_dic = {}
+                dataset1_common_zone, dataset2_common_zone = self.get_common_zone
+                _tmp_dic[self.meta1.product_name] = dataset1_common_zone
+                _tmp_dic[self.meta2.product_name] = dataset2_common_zone
+                self.common_zone_datasets = _tmp_dic
+        return self.common_zone_datasets
