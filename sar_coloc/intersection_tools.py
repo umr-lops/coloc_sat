@@ -1,8 +1,10 @@
 import pyproj
-import shapely.geometry.polygon
 from shapely.geometry import Polygon, MultiPoint, LineString, Point
 from itertools import product
 import math
+from affine import Affine
+
+import sar_coloc
 
 
 def extract_times_dataset(open_acquisition, time_name='time', dataset=None, start_date=None, stop_date=None):
@@ -119,3 +121,12 @@ def get_footprint_from_ll_ds(acquisition, ds=None):
     mpt_coords = [(lon, lat) for lon, lat in product(flatten_lon, flatten_lat) if not (math.isnan(lon) or
                                                                                        math.isnan(lat))]
     return MultiPoint(mpt_coords).convex_hull
+
+
+def get_transform(ds, lon_name, lat_name):
+    pixel_spacing_lon = ds.coords[lon_name][1] - ds.coords[lon_name][0]
+    pixel_spacing_lat = ds.coords[lat_name][1] - ds.coords[lat_name][0]
+
+    transform = Affine(pixel_spacing_lon, 0.0, ds.coords[lon_name][0].values,
+                       0.0, pixel_spacing_lat, ds.coords[lat_name][0].values)
+    return transform
