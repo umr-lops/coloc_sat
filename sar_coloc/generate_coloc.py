@@ -7,7 +7,10 @@ import numpy as np
 class GenerateColoc:
     """
         Class that generates co-locations. It can create listings of co-located products and/or generate co-location products.
-        # TODO : 2 options dans le titre (+ dire arguments des deux options)
+        Some arguments of this class are expressed as keyword arguments because there are 2 use options.
+        For the first option (comparison between a product and a whole dataset), arguments are `ds_name`, `input_ds`,
+        `level`.
+        For the second option (comparison between 2 products), argument is `product2_id`.
 
         Parameters
         ----------
