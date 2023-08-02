@@ -245,6 +245,51 @@ class GetSarMeta:
         else:
             return self._l2_info
 
+    @property
+    def longitude_name(self):
+        """
+        Get the name of the longitude variable in the dataset
+
+        Returns
+        -------
+        str
+            longitude name
+        """
+        if self.is_safe:
+            raise NotImplementedError('`longitude_name` not implemented for safe products')
+        else:
+            return 'lon'
+
+    @property
+    def latitude_name(self):
+        """
+        Get the name of the latitude variable in the dataset
+
+        Returns
+        -------
+        str
+            latitude name
+        """
+        if self.is_safe:
+            raise NotImplementedError('`latitude_name` not implemented for safe products')
+        else:
+            return 'lat'
+
+    @property
+    def time_name(self):
+        """
+        Get the name of the time variable in the dataset
+
+        Returns
+        -------
+        str
+            time name
+        """
+        if self.is_safe:
+            raise NotImplementedError('`time_name` not implemented for safe products')
+        else:
+            return 'time'
+
     class WrongProductTypeError(Exception):
         """
         Used for raising Exceptions when a function / property is called whereas it wasn't created for the specified
