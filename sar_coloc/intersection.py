@@ -7,6 +7,7 @@ import shapely
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
     get_polygon_area_in_km_squared, get_transform, get_common_points
+from .tools import mean_time_diff
 
 
 logger = logging.getLogger(__name__)
@@ -121,7 +122,7 @@ class ProductIntersection:
         def spatial_temporal_intersection(open_acquisition, polygon=None):
             if open_acquisition.acquisition_type == 'daily_regular_grid':
                 dataset = geographic_intersection(open_acquisition, polygon)
-                dataset = extract_times_dataset(open_acquisition, time_name=open_acquisition.time_name, dataset=dataset,
+                dataset = extract_times_dataset(open_acquisition, dataset=dataset,
                                                 start_date=self.start_date, stop_date=self.stop_date)
                 return dataset.where(~np.isnan(dataset[open_acquisition.wind_name]), drop=True)
             else:
@@ -194,7 +195,7 @@ class ProductIntersection:
         def spatial_temporal_intersection(open_acquisition, polygon=None):
             if open_acquisition.acquisition_type == 'swath':
                 dataset = geographic_intersection(open_acquisition, polygon)
-                dataset = extract_times_dataset(open_acquisition, time_name=open_acquisition.time_name, dataset=dataset,
+                dataset = extract_times_dataset(open_acquisition, dataset=dataset,
                                                 start_date=self.start_date, stop_date=self.stop_date)
                 return dataset
             else:
@@ -355,6 +356,8 @@ class ProductIntersection:
         """
         logger.info("Starting getting common zone.")
         logger.info('Start getting resampled datasets')
+        if self.resampled_datasets is None:
+            self.fill_resampled_datasets()
         dataset1 = self.resampled_datasets['meta1']
         dataset2 = self.resampled_datasets['meta2']
         reprojected_dataset = self.resampled_datasets['reprojected_dataset']
@@ -437,6 +440,102 @@ class ProductIntersection:
         """
         self.resampled_datasets = self.coloc_resample
 
+    def fill_common_zone_datasets(self):
+        """
+        Fills common zone datasets in the attribute `self.common_zone_datasets`
+        """
+        _tmp_dic = {}
+        # put 2 datasets in their common zone and keep only common points for each variable
+        dataset1_common_zone, dataset2_common_zone = get_common_points(*self.get_common_zone)
+        _tmp_dic[self.meta1.product_name] = dataset1_common_zone.squeeze()
+        _tmp_dic[self.meta2.product_name] = dataset2_common_zone.squeeze()
+        self.common_zone_datasets = _tmp_dic
+
+    def format_datasets(self):
+        """
+        Apply vars and attributes renaming to prepare common zone datasets for the co-location product and add
+        missing attributes
+
+        Returns
+        -------
+        Dict[str, xarray.Dataset]
+            Formatted common zone datasets
+        """
+        def apply_attributes_changes(meta, ds):
+            necessary_attrs = meta.necessary_attrs_in_coloc_product
+            attrs_rename_func = meta.rename_attrs_in_coloc_product
+            # Only keep required attributes and rename these for the co-location product
+            ds.attrs = {attrs_rename_func(attr): ds.attrs[attr] for attr in necessary_attrs if attr in ds.attrs}
+            ds.attrs['sourceProduct'] = meta.product_name
+            ds.attrs['missionName'] = meta.mission_name
+            if meta.acquisition_type == 'truncated_swath':
+                # if the acquisition is a truncated swath, the dataset (so the footprint) is already time selective
+                footprint = meta.footprint
+            else:
+                footprint = get_footprint_from_ll_ds(meta, ds, self.start_date, self.stop_date)
+            unique_time = np.unique(ds[meta.time_name])
+            ds.attrs['measurementStartDate'] = min(unique_time)
+            ds.attrs['measurementStopDate'] = max(unique_time)
+            ds.attrs['footprint'] = footprint
+            return ds
+
+        def only_keep_required_vars(meta, ds):
+            unecessary_vars = meta.unecessary_vars_in_coloc_product
+            ds = ds.drop_vars([var for var in ds.variables if var in unecessary_vars])
+            return ds
+
+        def rename_vars_and_attributes(ds, ds_nb):
+            for var in ds.data_vars:
+                ds = ds.rename_vars({var: f"{var}{ds_nb}"})
+            attributes = ds.attrs
+            ds.attrs = {f"{attr}{ds_nb}": ds.attrs[attr] for attr in attributes}
+            return ds
+
+        if self.common_zone_datasets is None:
+            self.fill_common_zone_datasets()
+        _tmp_dic = {}
+
+        product_name1 = self.meta1.product_name
+        dataset1 = self.common_zone_datasets[product_name1]
+        product_name2 = self.meta2.product_name
+        dataset2 = self.common_zone_datasets[product_name2]
+        # Attributes changes
+        dataset1 = apply_attributes_changes(self.meta1, dataset1)
+        dataset2 = apply_attributes_changes(self.meta2, dataset2)
+        # Variable selection
+        dataset1 = only_keep_required_vars(self.meta1, dataset1)
+        dataset2 = only_keep_required_vars(self.meta2, dataset2)
+        # TODO : add common mask
+        # Add the dataset number in the variable and attributes name
+        dataset1 = rename_vars_and_attributes(dataset1, 1)
+        dataset2 = rename_vars_and_attributes(dataset2, 2)
+        return dataset1, dataset2
+
+    def merge_datasets(self):
+        """
+        Merge 2 formatted common zones datasets in an only dataset
+
+        Returns
+        -------
+        xr.Dataset
+            2 formatted common zones datasets merged
+        """
+        dataset1, dataset2 = self.format_datasets()
+
+        def get_common_attrs():
+            attrs = {}
+            start1, stop1 = dataset1.attrs['measurementStartDate1'], dataset1.attrs['measurementStopDate1']
+            start2, stop2 = dataset2.attrs['measurementStartDate2'], dataset2.attrs['measurementStopDate2']
+            attrs['time_difference'] = mean_time_diff(start1, stop1, start2, stop2)
+            # TODO: add correlation_coefficient + standard_deviation + vmax_m_s + scatter_index + counted_points
+            return attrs
+
+        merged_ds = xr.merge([dataset1, dataset2])
+        merged_ds.attrs |= get_common_attrs()
+        merged_ds.attrs |= dataset1.attrs
+        merged_ds.attrs |= dataset2.attrs
+        return merged_ds
+
     @property
     def coloc_product_datasets(self):
         """
@@ -451,12 +550,6 @@ class ProductIntersection:
            Final co-located product datasets.
         """
         if self.common_zone_datasets is None:
-            if self.resampled_datasets is None:
-                self.fill_resampled_datasets()
-                _tmp_dic = {}
-                # put 2 datasets in their common zone and keep only common points for each variable
-                dataset1_common_zone, dataset2_common_zone = get_common_points(self.get_common_zone)
-                _tmp_dic[self.meta1.product_name] = dataset1_common_zone
-                _tmp_dic[self.meta2.product_name] = dataset2_common_zone
-                self.common_zone_datasets = _tmp_dic
+            self.fill_common_zone_datasets()
+        # TODO : call self.merge_datasets + store the result
         return self.common_zone_datasets
