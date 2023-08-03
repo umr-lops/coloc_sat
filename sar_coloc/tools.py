@@ -667,3 +667,49 @@ def extract_name_from_meta_class(obj):
         return match.group(1)
     else:
         return None
+
+
+def date_means(date1, date2):
+    """
+    Get means of 2 datetimes
+
+    Parameters
+    ----------
+    date1: datetime.datetime
+        Date 1
+    date2: datetime.datetime
+        date 2
+    Returns
+    -------
+    datetime.datetime
+        Means of 2 dates
+    """
+    diff = date2 - date1
+    half_diff = diff / 2
+    mean = date1 + half_diff
+
+    return mean
+
+
+def mean_time_diff(start1, stop1, start2, stop2):
+    """
+    Get mean of the time difference between 2 date ranges.
+
+    Parameters
+    ----------
+    start1: datetime.datetime
+        Start of the first range date.
+    stop1: datetime.datetime
+        Stop of the first range date.
+    start2: datetime.datetime
+        Start of the second range date.
+    stop2: datetime.datetime
+        Stop of the second range date.
+    Returns
+    -------
+    datetime.datetime
+        Mean of the time difference between 2 date ranges.
+    """
+    mean1 = date_means(start1, stop1)
+    mean2 = date_means(start2, stop2)
+    return abs(mean1 - mean2)
