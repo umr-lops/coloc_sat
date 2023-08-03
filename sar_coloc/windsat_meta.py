@@ -165,5 +165,14 @@ class GetWindSatMeta:
         """
         return 'wdir'
 
+    @property
+    def mission_name(self):
+        """
+        Get the mission name (ex : RADARSAT-2, RCM, SENTINEL-1, SMOS, SMAP,...)
 
-
+        Returns
+        -------
+        str
+            Mission name
+        """
+        return 'WINDSAT'

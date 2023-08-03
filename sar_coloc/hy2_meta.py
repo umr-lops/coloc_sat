@@ -77,6 +77,18 @@ class GetHy2Meta:
         """
         return 'time'
 
+    @property
+    def mission_name(self):
+        """
+        Get the mission name (ex : RADARSAT-2, RCM, SENTINEL-1, SMOS, SMAP,...)
+
+        Returns
+        -------
+        str
+            Mission name
+        """
+        return 'HY2'
+
     def extract_times_dataset(self, hy_dataset, start_date=None, stop_date=None):
         if start_date is None:
             start_date = self.start_date
