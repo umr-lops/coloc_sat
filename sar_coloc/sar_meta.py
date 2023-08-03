@@ -46,7 +46,7 @@ class GetSarMeta:
         if self.is_safe:
             if (self.mission_name == 'S1') and self.multidataset:
                 self._l1_info['dataset_names'] = [ds_name for ds_name in list(self._l1_info['meta']
-                                                                                  .subdatasets.index)]
+                                                                              .subdatasets.index)]
             else:
                 self._l1_info['dataset_names'] = [self.product_path]
         else:
@@ -119,25 +119,81 @@ class GetSarMeta:
     @property
     def mission_name(self):
         """
-        From the product_name, get the sensor name (ex : RS2, RCM, S1)
+        From the product_name, get the mission name (ex : RADARSAT-2, RCM, SENTINEL-1)
 
         Returns
         -------
         str
-            Sensor name
+            Mission name
 
         See Also
         --------
-        `OpenSar.product_name`
+        `GetSarMeta.product_name`
         """
         if 'RS2' in self.product_name.upper():
-            return 'RS2'
+            return 'RADARSAT-2'
         elif 'RCM' in self.product_name.upper():
             return 'RCM'
         elif 'S1' in self.product_name.upper():
-            return 'S1'
+            return 'SENTINEL-1'
         else:
             raise TypeError("Unrecognized satellite name from %s" % str(self.product_name))
+
+    @property
+    def unecessary_vars_in_coloc_product(self):
+        """
+        Get unecessary variables in co-location product
+
+        Returns
+        -------
+        list[str]
+            Unecessary variables in co-location product
+        """
+        return []
+
+    @property
+    def necessary_attrs_in_coloc_product(self):
+        """
+        Get necessary dataset attributes in co-location product
+
+        Returns
+        -------
+        list[str]
+            Necessary dataset attributes in co-location product
+        """
+        return ['Conventions',
+                'title',
+                'institution',
+                'reference',
+                'measurementDate',
+                'sourceProduct',
+                'missionName',
+                'polarization',
+                'footprint',
+                'l2ProcessingUtcTime',
+                'version',
+                'grid_mapping']
+
+    def rename_attrs_in_coloc_product(self, attr):
+        """
+        Get the new name of an attribute in co-location products from an original attribute
+
+        Parameters
+        ----------
+        attr: str
+            Attribute from the satellite dataset that needs to be renames for the co-location product.
+
+        Returns
+        -------
+        str
+            New attribute's name from the satellite dataset.
+        """
+        # no attributes to rename
+        mapper = {}
+        if attr in mapper.keys():
+            return mapper[attr]
+        else:
+            return attr
 
     @property
     def footprint(self):
