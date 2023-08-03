@@ -7,17 +7,15 @@ from affine import Affine
 import sar_coloc
 
 
-def extract_times_dataset(open_acquisition, time_name='time', dataset=None, start_date=None, stop_date=None):
+def extract_times_dataset(acquisition, dataset=None, start_date=None, stop_date=None):
     """
     Extract a sub-dataset from a dataset of an acquisition to get a time dataset within 2 bounds (dates). If one of
     th bound exceeds the acquisition extremum times, so the acquisition Start and/ or Stop dates are chosen.
 
     Parameters
     ----------
-    open_acquisition: open_smos.OpenSmos | open_hy.OpenHy | open_era.OpenEra
-        Open object from an acquisition
-    time_name: str
-        name of the time variable in the ds
+    acquisition: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetEra5Meta | sar_coloc.GetHy2Meta | sar_coloc.GetSmapMeta | sar_coloc.GetWindsatMeta
+        Meta object from an acquisition
     dataset: xarray.Dataset | None
         dataset on which we want to extract some values depending on times. If it is None, extraction is made on
         `open_acquisition.dataset`; else extraction is made on the specified dataset
@@ -32,13 +30,14 @@ def extract_times_dataset(open_acquisition, time_name='time', dataset=None, star
         Contains a sub-dataset of the acquisition dataset (between `start_date` and `stop_date`).
     """
     if dataset is None:
-        dataset = open_acquisition.dataset
+        dataset = acquisition.dataset
     if dataset is None:
         return dataset
     if start_date is None:
-        start_date = open_acquisition.start_date
+        start_date = acquisition.start_date
     if stop_date is None:
-        stop_date = open_acquisition.stop_date
+        stop_date = acquisition.stop_date
+    time_name = acquisition.time_name
     return dataset.where((dataset[time_name] >= start_date) &
                          (dataset[time_name] <= stop_date), drop=True)
 
@@ -97,17 +96,22 @@ def get_polygon_area_in_km_squared(polygon):
         raise ValueError(f"Area from type {type(polygon)} can't be computed")
 
 
-def get_footprint_from_ll_ds(acquisition, ds=None):
+def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=None):
     """
-    Get the footprint from a dataset in an acquisition.
+    Get the footprint from a dataset in an acquisition. If there is a start and a stop time, the footprint is selected
+    on this time range.
 
     Parameters
     ----------
     acquisition: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetEra5Meta | sar_coloc.GetHy2Meta | sar_coloc.GetSmapMeta | sar_coloc.GetWindsatMeta
         Meta acquisition.
     ds: xarray.Dataset
-        Ds on which footprint can be extracted from longitude and latitude vars. If no one is explicited (value at None)
+        Ds on which footprint can be extracted from longitude and latitude vars. If no one is given (value at None)
         , dataset is taken from `acquisition.dataset`.
+    start_date: numpy.datetime64 | None
+        Start chosen date.
+    stop_date: numpy.datetime64 | None
+        End chosen date.
 
     Returns
     -------
@@ -116,6 +120,8 @@ def get_footprint_from_ll_ds(acquisition, ds=None):
     """
     if ds is None:
         ds = acquisition.dataset
+    if (start_date is not None) or (stop_date is not None):
+        ds = extract_times_dataset(acquisition, dataset=ds, start_date=start_date, stop_date=stop_date)
     flatten_lon = ds[acquisition.longitude_name].data.flatten()
     flatten_lat = ds[acquisition.latitude_name].data.flatten()
     mpt_coords = [(lon, lat) for lon, lat in product(flatten_lon, flatten_lat) if not (math.isnan(lon) or
