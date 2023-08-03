@@ -1,9 +1,6 @@
-import rasterio
-
-from .tools import open_smos_file, correct_dataset, determine_dims
+from .tools import open_smos_file, correct_dataset
 import os
 import numpy as np
-from shapely.geometry import MultiPoint, Polygon
 
 
 def extract_wind_speed(smos_dataset):
@@ -77,95 +74,67 @@ class GetSmosMeta:
         """
         return 'measurement_time'
 
-    def footprint(self, polygon, start_date=None, stop_date=None):
+    @property
+    def mission_name(self):
         """
-        Get the footprint between 2 times. If no one specified, get the footprint between the start and stop
-        acquisition times
-
-        Parameters
-        ----------
-        polygon : shapely.geometry.polygon.Polygon
-            Footprint of the other acquisition we want to compare
-        start_date: numpy.datetime64 | None
-            Start time for the footprint
-        stop_date: numpy.datetime64 | None
-            Stop time for the footprint
+        Get the mission name (ex : RADARSAT-2, RCM, SENTINEL-1, SMOS, SMAP,...)
 
         Returns
         -------
-        shapely.geometry.polygon.Polygon | None
-            Resulting footprint
+        str
+            Mission name
         """
-        entire_poly = Polygon()
-        cropped_ds = self.spatial_geographic_intersection(polygon, start_date, stop_date)
-        # if the footprint cross the meridian, we split the footprint in 2 ones
-        if any(cropped_ds.lon < 0):
-            conditions = [
-                cropped_ds.lon < 0,
-                cropped_ds.lon >= 0
-            ]
-            for condition in conditions:
-                conditioned_wind = cropped_ds.where(condition, drop=True)
-                stacked_wind = conditioned_wind.stack({"cells": determine_dims(conditioned_wind[["lon", "lat"]])})\
-                    .dropna(dim="cells")
-                mpt = MultiPoint(stacked_wind.cells.data)
-                entire_poly = entire_poly.union(mpt.convex_hull)
-        else:
-            stacked_wind = cropped_ds.stack({"cells": determine_dims(cropped_ds[["lon", "lat"]])}).dropna(dim="cells")
-            mpt = MultiPoint(stacked_wind.cells.data)
-            entire_poly = mpt.convex_hull
-        return entire_poly
+        return 'SMOS'
 
-    def rasterize_polygon(self, polygon):
-        min_bounds = (min(np.unique(self.dataset.lon)),
-                      min(np.unique(self.dataset.lat)))
-        lon_res = float(self.dataset.attrs['geospatial_lon_resolution'])
-        lat_res = float(self.dataset.attrs['geospatial_lat_resolution'])
-        out_shape = [len(self.dataset.lat), len(self.dataset.lon)]
-        transform = rasterio.Affine.translation(min_bounds[0], min_bounds[1]) * rasterio.Affine.scale(lon_res, lat_res)
-        return rasterio.features.rasterize(shapes=[polygon], out_shape=out_shape, transform=transform)
+    # TODO: Add method to rename vars ?
 
-    def geographic_intersection(self, polygon=None):
-        if polygon is None:
-            return self.dataset
-        else:
-            rasterized = self.rasterize_polygon(polygon)
-            ds = self.dataset.where(rasterized)
-
-            ds = ds.dropna('lon', how='all')
-            ds = ds.dropna('lat', how='all')
-            return ds
-
-    def spatial_geographic_intersection(self, polygon=None, start_date=None, stop_date=None):
-        ds = self.geographic_intersection(polygon)
-        ds = self.extract_times_dataset(ds, start_date, stop_date)
-        ds = extract_wind_speed(ds)
-        return ds
-
-    def extract_times_dataset(self, smos_dataset, start_date=None, stop_date=None):
+    @property
+    def unecessary_vars_in_coloc_product(self):
         """
-        Extract a sub-dataset from `OpenSmos.dataset` to get a time dataset within 2 bounds (dates). If one of th bound
-        exceeds the acquisition extremum times, so the acquisition Start and/ or Stop dates are chosen.
-        Parameters
-        ----------
-        start_date: numpy.datetime64 | None
-            Start chosen date.
-        stop_date: numpy.datetime64 | None
-            End chosen date.
+        Get unecessary variables in co-location product
 
         Returns
         -------
-        xarray.Dataset | None
-            Contains a sub-dataset of `OpenSmos.times` (between `start_date` and `stop_date`).
+        list[str]
+            Unecessary variables in co-location product
         """
-        if smos_dataset is None:
-            return smos_dataset
-        if start_date is None:
-            start_date = self.start_date
-        if stop_date is None:
-            stop_date = self.stop_date
-        return smos_dataset.where((smos_dataset.measurement_time >= start_date) &
-                                  (smos_dataset.measurement_time <= stop_date), drop=True)
+        return [self.time_name]
+
+    @property
+    def necessary_attrs_in_coloc_product(self):
+        """
+        Get necessary dataset attributes in co-location product
+
+        Returns
+        -------
+        list[str]
+            Necessary dataset attributes in co-location product
+        """
+        return ['Conventions', 'institution', 'title', 'grid_mapping', 'Metadata_Conventions', 'references',
+                'product_version']
+
+    def rename_attrs_in_coloc_product(self, attr):
+        """
+        Get the new name of an attribute in co-location products from an original attribute
+
+        Parameters
+        ----------
+        attr: str
+            Attribute from the satellite dataset that needs to be renames for the co-location product.
+
+        Returns
+        -------
+        str
+            New attribute's name from the satellite dataset.
+        """
+        mapper = {
+            'references': 'sourceReference',
+            'product_version': 'sourceProductVersion',
+        }
+        if attr in mapper.keys():
+            return mapper[attr]
+        else:
+            return attr
 
     @property
     def acquisition_type(self):
@@ -218,18 +187,6 @@ class GetSmosMeta:
             return True
         else:
             return False
-
-    @property
-    def mission_name(self):
-        """
-        Name of the mission (or model)
-
-        Returns
-        -------
-        str
-            Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
-        """
-        return "SMOS"
 
     @property
     def wind_name(self):
