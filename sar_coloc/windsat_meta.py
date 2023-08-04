@@ -1,9 +1,8 @@
 import os
 import numpy as np
-import xarray as xr
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from sar_coloc.tools import correct_dataset, convert_mingmt
+from sar_coloc.tools import correct_dataset, convert_mingmt, common_var_names
 from .windsat_daily_v7 import WindSatDaily, to_xarray_dataset
 
 
@@ -11,6 +10,9 @@ class GetWindSatMeta:
     def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
+        self._time_name = 'time'
+        self._longitude_name = 'longitude'
+        self._latitude_name = 'latitude'
         self.dataset = to_xarray_dataset(WindSatDaily(product_path, np.nan)).load()
         self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
         self.set_dataset(convert_mingmt(self))
@@ -25,7 +27,7 @@ class GetWindSatMeta:
         str
             longitude name
         """
-        return 'longitude'
+        return self._longitude_name
 
     @property
     def latitude_name(self):
@@ -37,7 +39,7 @@ class GetWindSatMeta:
         str
             latitude name
         """
-        return 'latitude'
+        return self._latitude_name
 
     @property
     def time_name(self):
@@ -49,7 +51,7 @@ class GetWindSatMeta:
         str
             time name
         """
-        return 'time'
+        return self._time_name
 
     def set_dataset(self, dataset):
         """
@@ -176,3 +178,80 @@ class GetWindSatMeta:
             Mission name
         """
         return 'WINDSAT'
+
+    def rename_vars_in_coloc(self, dataset=None):
+        """
+        Rename variables from a dataset to homogenize the co-location product. If no dataset is explicit, so it is this
+        of `self.dataset` which is used.
+
+        Parameters
+        ----------
+        dataset: xarray.Dataset | None
+            Dataset on which common vars must be renamed
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset with homogene variable names
+        """
+        if dataset is None:
+            dataset = self.dataset
+            # map the variable names in the dataset with the keys in common vars
+        mapper = {
+            self.wind_name: 'wind_direction',
+        }
+        for var in dataset.variables:
+            if var in mapper.keys():
+                key_in_common_vars = mapper[var]
+                dataset = dataset.rename_vars({var: common_var_names[key_in_common_vars]})
+        return dataset
+
+    @property
+    def unecessary_vars_in_coloc_product(self):
+        """
+        Get unecessary variables in co-location product
+
+        Returns
+        -------
+        list[str]
+            Unecessary variables in co-location product
+        """
+        return [self.time_name, 'land', 'nodata', 'ice', 'cloud']
+
+    @property
+    def necessary_attrs_in_coloc_product(self):
+        """
+        Get necessary dataset attributes in co-location product
+
+        Returns
+        -------
+        list[str]
+            Necessary dataset attributes in co-location product
+        """
+        # No attributes to the original dataset
+        return []
+
+    def rename_attrs_in_coloc_product(self, attr):
+        """
+        Get the new name of an attribute in co-location products from an original attribute
+
+        Parameters
+        ----------
+        attr: str
+            Attribute from the satellite dataset that needs to be renames for the co-location product.
+
+        Returns
+        -------
+        str
+            New attribute's name from the satellite dataset.
+        """
+        # No attributes to the original dataset
+        return ""
+
+    @longitude_name.setter
+    def longitude_name(self, value):
+        self._longitude_name = value
+
+    @latitude_name.setter
+    def latitude_name(self, value):
+        self._latitude_name = value
