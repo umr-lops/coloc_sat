@@ -1,4 +1,4 @@
-from .tools import open_smos_file, correct_dataset
+from .tools import open_smos_file, correct_dataset, common_var_names
 import os
 import numpy as np
 
@@ -86,7 +86,25 @@ class GetSmosMeta:
         """
         return 'SMOS'
 
-    # TODO: Add method to rename vars ?
+    def rename_vars_in_coloc(self, dataset=None):
+        """
+        Rename variables from a dataset to homogenize the co-location product. If no dataset is explicit, so it is this
+        of `self.dataset` which is used.
+
+        Parameters
+        ----------
+        dataset: xarray.Dataset | None
+            Dataset on which common vars must be renamed
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset with homogene variable names
+        """
+        if dataset is None:
+            dataset = self.dataset
+        # no vars to rename
+        return dataset
 
     @property
     def unecessary_vars_in_coloc_product(self):
@@ -128,7 +146,7 @@ class GetSmosMeta:
             New attribute's name from the satellite dataset.
         """
         mapper = {
-            'references': 'sourceReference',
+            'references': 'reference',
             'product_version': 'sourceProductVersion',
         }
         if attr in mapper.keys():
