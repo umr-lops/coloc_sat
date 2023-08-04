@@ -5,20 +5,16 @@ from shapely import wkt
 from shapely.geometry import Polygon
 import numpy as np
 import fsspec
-import itertools
 from datetime import datetime
 from xsar.raster_readers import resource_strftime
 import re
 
 
-def unique(iterable):
-    return list(dict.fromkeys(iterable))
-
-
-def determine_dims(coords):
-    all_dims = [coord.dims for coord in coords.variables.values()]
-
-    return unique(itertools.chain.from_iterable(all_dims))
+common_var_names = {
+    'wind_speed': 'wind_speed',
+    'wind_direction': 'wind_direction_ecmwf',
+    'wind_from_direction': 'wind_from_direction',
+}
 
 
 def get_acquisition_root_paths(ds_name):
