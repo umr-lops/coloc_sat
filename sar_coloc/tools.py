@@ -14,6 +14,9 @@ common_var_names = {
     'wind_speed': 'wind_speed',
     'wind_direction': 'wind_direction_ecmwf',
     'wind_from_direction': 'wind_from_direction',
+    'longitude': 'lon',
+    'latitude': 'lat',
+    'time': 'time',
 }
 
 
