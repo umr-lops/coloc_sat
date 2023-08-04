@@ -1,6 +1,6 @@
 from shapely.geometry import MultiPoint
 
-from .tools import open_nc, correct_dataset
+from .tools import open_nc, correct_dataset, common_var_names
 import os
 import numpy as np
 import geopandas as gpd
@@ -89,74 +89,73 @@ class GetHy2Meta:
         """
         return 'HY2'
 
-    def extract_times_dataset(self, hy_dataset, start_date=None, stop_date=None):
-        if start_date is None:
-            start_date = self.start_date
-        if stop_date is None:
-            stop_date = self.stop_date
-        return hy_dataset.where((hy_dataset[self.time_name] >= start_date) & (hy_dataset[self.time_name] <= stop_date),
-                                drop=True)
-
-    def spatial_geographic_intersection(self, polygon=None, start_date=None, stop_date=None):
-        ds = self.geographic_intersection(polygon)
-        ds = self.extract_times_dataset(ds, start_date, stop_date)
-        ds = extract_wind_speed(ds)
-        return ds
-
-    def geographic_intersection(self, polygon):
+    def rename_vars_in_coloc(self, dataset=None):
         """
-        Returns the scatterometer data within the SAR swath.
-
-        Parameters:
-            polygon : shapely.geometry.polygon.Polygon
-                Footprint of the other acquisition we want to compare
-
-        Returns:
-            xarray.Dataset | None
-                Dataset of the scatterometer data within the SAR swath.
-        """
-
-        ds_scat = self.dataset
-        # Find the scatterometer points that are within the sar swath bounding box
-        min_lon, min_lat, max_lon, max_lat = polygon.bounds
-        condition = (ds_scat['lon'] > min_lon) & (ds_scat['lon'] < max_lon) & \
-                    (ds_scat['lat'] > min_lat) & (ds_scat['lat'] < max_lat)
-        ds_scat_intersected = ds_scat.where(condition, drop=True)
-
-        # Create a mask on the points that are actually within the sar footprint
-        df_coords = ds_scat_intersected[['lon', 'lat']].to_dataframe()
-        gdf = gpd.GeoDataFrame(df_coords, geometry=gpd.points_from_xy(df_coords.lon, df_coords.lat))
-        gdf['mask'] = gdf['geometry'].apply(polygon.contains)
-        mask = gdf['mask'].to_xarray().drop_vars(names=['NUMROWS', 'NUMCELLS'])
-
-        # Apply the mask
-        ds_scat_intersected = ds_scat_intersected.where(mask, drop=True)
-        return ds_scat_intersected
-
-    def footprint(self, polygon, start_date=None, stop_date=None):
-        """
-        Get the footprint between 2 times. If no one specified, get the footprint between the start and stop
-        acquisition times
+        Rename variables from a dataset to homogenize the co-location product. If no dataset is explicit, so it is this
+        of `self.dataset` which is used.
 
         Parameters
         ----------
-        polygon : shapely.geometry.polygon.Polygon
-            Footprint of the other acquisition we want to compare
-        start_date: numpy.datetime64 | None
-            Start time for the footprint
-        stop_date: numpy.datetime64 | None
-            Stop time for the footprint
+        dataset: xarray.Dataset | None
+            Dataset on which common vars must be renamed
 
         Returns
         -------
-        shapely.geometry.polygon.Polygon | None
-            Resulting footprint
+        xarray.Dataset
+            Dataset with homogene variable names
         """
-        cropped_ds = self.spatial_geographic_intersection(polygon, start_date, stop_date)
-        flatten_lon = cropped_ds.lon.values.flatten()
-        flatten_lat = cropped_ds.lat.values.flatten()
-        mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)])
-        return mpt.convex_hull
+        if dataset is None:
+            dataset = self.dataset
+        # no vars to rename
+        return dataset
+
+    @property
+    def unecessary_vars_in_coloc_product(self):
+        """
+        Get unecessary variables in co-location product
+
+        Returns
+        -------
+        list[str]
+            Unecessary variables in co-location product
+        """
+        return [self.time_name]
+
+    @property
+    def necessary_attrs_in_coloc_product(self):
+        """
+        Get necessary dataset attributes in co-location product
+
+        Returns
+        -------
+        list[str]
+            Necessary dataset attributes in co-location product
+        """
+        return ['Conventions', 'institution', 'title', 'grid_mapping', 'Metadata_Conventions', 'references',
+                'product_version']
+
+    def rename_attrs_in_coloc_product(self, attr):
+        """
+        Get the new name of an attribute in co-location products from an original attribute
+
+        Parameters
+        ----------
+        attr: str
+            Attribute from the satellite dataset that needs to be renames for the co-location product.
+
+        Returns
+        -------
+        str
+            New attribute's name from the satellite dataset.
+        """
+        mapper = {
+            'references': 'reference',
+            'product_version': 'sourceProductVersion',
+        }
+        if attr in mapper.keys():
+            return mapper[attr]
+        else:
+            return attr
 
     @property
     def acquisition_type(self):
