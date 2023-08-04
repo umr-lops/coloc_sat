@@ -1,6 +1,6 @@
 import os
 from .tools import call_sar_meta, open_l2, get_l2_footprint, extract_start_stop_dates_from_sar
-from shapely.geometry import Polygon, MultiPoint
+from shapely.geometry import Polygon
 import numpy as np
 
 
@@ -10,6 +10,9 @@ class GetSarMeta:
         self.product_name = os.path.basename(self.product_path)
         self._l1_info = None
         self._l2_info = None
+        self._time_name = None
+        self._longitude_name = None
+        self._latitude_name = None
         if self.is_safe:
             self._l1_info = {'meta': call_sar_meta(self.product_path),
                              'dataset_names': [],
@@ -22,6 +25,9 @@ class GetSarMeta:
             self.fill_times()
             self.fill_footprints()
         else:
+            self._time_name = 'time'
+            self._longitude_name = 'lon'
+            self._latitude_name = 'lat'
             self._l2_info = open_l2(product_path)
 
     def fill_submeta(self):
@@ -314,7 +320,7 @@ class GetSarMeta:
         if self.is_safe:
             raise NotImplementedError('`longitude_name` not implemented for safe products')
         else:
-            return 'lon'
+            return self._longitude_name
 
     @property
     def latitude_name(self):
@@ -329,7 +335,7 @@ class GetSarMeta:
         if self.is_safe:
             raise NotImplementedError('`latitude_name` not implemented for safe products')
         else:
-            return 'lat'
+            return self._latitude_name
 
     @property
     def time_name(self):
@@ -344,7 +350,7 @@ class GetSarMeta:
         if self.is_safe:
             raise NotImplementedError('`time_name` not implemented for safe products')
         else:
-            return 'time'
+            return self._time_name
 
     class WrongProductTypeError(Exception):
         """
@@ -352,3 +358,11 @@ class GetSarMeta:
         type (Level 2 / Level 1)
         """
         pass
+
+    @longitude_name.setter
+    def longitude_name(self, value):
+        self._longitude_name = value
+
+    @latitude_name.setter
+    def latitude_name(self, value):
+        self._latitude_name = value

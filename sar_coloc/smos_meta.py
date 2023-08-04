@@ -11,6 +11,9 @@ class GetSmosMeta:
     def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
+        self._time_name = 'measurement_time'
+        self._longitude_name = 'lon'
+        self._latitude_name = 'lat'
         self.dataset = open_smos_file(product_path).squeeze().load()
         self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
 
@@ -48,7 +51,7 @@ class GetSmosMeta:
         str
             longitude name
         """
-        return 'lon'
+        return self._longitude_name
 
     @property
     def latitude_name(self):
@@ -60,7 +63,7 @@ class GetSmosMeta:
         str
             latitude name
         """
-        return 'lat'
+        return self._latitude_name
 
     @property
     def time_name(self):
@@ -72,7 +75,7 @@ class GetSmosMeta:
         str
             time name
         """
-        return 'measurement_time'
+        return self._time_name
 
     @property
     def mission_name(self):
@@ -218,3 +221,17 @@ class GetSmosMeta:
 
         """
         return 'wind_speed'
+
+    def lon_lat_names_setter(self, longitude=None, latitude=None):
+        if longitude is not None:
+            self._longitude_name = longitude
+        if latitude is not None:
+            self._latitude_name = latitude
+
+    @longitude_name.setter
+    def longitude_name(self, value):
+        self._longitude_name = value
+
+    @latitude_name.setter
+    def latitude_name(self, value):
+        self._latitude_name = value

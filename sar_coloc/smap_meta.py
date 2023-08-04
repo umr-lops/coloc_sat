@@ -10,6 +10,9 @@ class GetSmapMeta:
     def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
+        self._time_name = 'time'
+        self._longitude_name = 'lon'
+        self._latitude_name = 'lat'
         self.dataset = open_nc(product_path).load()
         self.set_dataset(self.add_source_reference_attribute(ds=self.dataset))
         self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
@@ -28,7 +31,7 @@ class GetSmapMeta:
         str
             longitude name
         """
-        return 'lon'
+        return self._longitude_name
 
     @property
     def latitude_name(self):
@@ -40,7 +43,7 @@ class GetSmapMeta:
         str
             latitude name
         """
-        return 'lat'
+        return self._latitude_name
 
     @property
     def time_name(self):
@@ -52,7 +55,7 @@ class GetSmapMeta:
         str
             time name
         """
-        return 'time'
+        return self._time_name
 
     def set_dataset(self, dataset):
         """
@@ -303,4 +306,10 @@ class GetSmapMeta:
                                   f"{content['institution']}. {content['weblink']}"
         return ds
 
+    @longitude_name.setter
+    def longitude_name(self, value):
+        self._longitude_name = value
 
+    @latitude_name.setter
+    def latitude_name(self, value):
+        self._latitude_name = value

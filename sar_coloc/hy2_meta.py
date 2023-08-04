@@ -1,9 +1,6 @@
-from shapely.geometry import MultiPoint
-
 from .tools import open_nc, correct_dataset, common_var_names
 import os
 import numpy as np
-import geopandas as gpd
 
 
 def extract_wind_speed(smos_dataset):
@@ -14,6 +11,9 @@ class GetHy2Meta:
     def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
+        self._time_name = 'time'
+        self._longitude_name = 'longitude'
+        self._latitude_name = 'latitude'
         self.dataset = open_nc(product_path).load()
         self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
 
@@ -51,7 +51,7 @@ class GetHy2Meta:
         str
             longitude name
         """
-        return 'lon'
+        return self._longitude_name
 
     @property
     def latitude_name(self):
@@ -63,7 +63,7 @@ class GetHy2Meta:
         str
             latitude name
         """
-        return 'lat'
+        return self._latitude_name
 
     @property
     def time_name(self):
@@ -75,7 +75,7 @@ class GetHy2Meta:
         str
             time name
         """
-        return 'time'
+        return self._time_name
 
     @property
     def mission_name(self):
@@ -152,4 +152,12 @@ class GetHy2Meta:
             Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
         """
         return "HY2"
+
+    @longitude_name.setter
+    def longitude_name(self, value):
+        self._longitude_name = value
+
+    @latitude_name.setter
+    def latitude_name(self, value):
+        self._latitude_name = value
 
