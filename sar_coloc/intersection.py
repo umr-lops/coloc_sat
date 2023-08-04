@@ -7,16 +7,15 @@ import shapely
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
     get_polygon_area_in_km_squared, get_transform, get_common_points
-from .tools import mean_time_diff
-
+from .tools import mean_time_diff, common_var_names
 
 logger = logging.getLogger(__name__)
 
 
 class ProductIntersection:
     def __init__(self, meta1, meta2, delta_time=60, minimal_area=1600):
-        self.meta1 = meta1
-        self.meta2 = meta2
+        self._meta1 = meta1
+        self._meta2 = meta2
         self.delta_time = delta_time
         self.minimal_area = minimal_area
         self.delta_time_np = np.timedelta64(delta_time, 'm')
@@ -275,22 +274,41 @@ class ProductIntersection:
             Two first values of the dictionary are resampled datasets from meta1 and meta 2.  Last value is a string
             that precise which dataset of both has been reprojected.
         """
+
+        def rename_dims(meta, ds):
+            # rename longitude, latitude and time by references name and modify concerned attributes in the metaobjects
+            ds = ds.rename_vars({meta.longitude_name: common_var_names['longitude'],
+                                 meta.latitude_name: common_var_names['latitude']})
+            #meta.__setattr__('longitude_name', common_var_names['longitude'])
+            #meta.__setattr__('latitude_name', common_var_names['latitude'])
+            meta.longitude_name = common_var_names['longitude']
+            meta.latitude_name = common_var_names['latitude']
+            return meta, ds
+
         logger.info("Starting resampling.")
-        meta1 = self.meta1
-        meta2 = self.meta2
         existing_dataset_keys = list(self._datasets.keys())
         logger.info("Getting datasets.")
         # Getting datasets
-        if meta1.product_name in existing_dataset_keys:
-            dataset1 = self._datasets[meta1.product_name]
+        if self.meta1.product_name in existing_dataset_keys:
+            dataset1 = self._datasets[self.meta1.product_name]
         else:
-            dataset1 = meta1.dataset
+            dataset1 = self.meta1.dataset
         logger.info("meta1 dataset opened.")
-        if meta2.product_name in existing_dataset_keys:
-            dataset2 = self._datasets[meta2.product_name]
+        if self.meta2.product_name in existing_dataset_keys:
+            dataset2 = self._datasets[self.meta2.product_name]
         else:
-            dataset2 = meta2.dataset
+            dataset2 = self.meta2.dataset
         logger.info("meta1 dataset opened.")
+
+        # rename lon / lat in the metaobjects and in the dataset
+        meta1, dataset1 = rename_dims(self.meta1, dataset1)
+        meta2, dataset2 = rename_dims(self.meta2, dataset2)
+        self.meta1 = meta1
+        self.meta2 = meta2
+        # FIXME : ERROR FOR CASE WINDSAT -SAR : meta lon and lat names are not changed (whereas i am using setters)
+        """# alias to metaobjects
+        meta1 = self.meta1
+        meta2 = self.meta2"""
 
         # Set crs if not defined
         if dataset1.rio.crs is None:
@@ -301,6 +319,7 @@ class ProductIntersection:
         # replace lon and lat with x and y (necessary to make reproject_match() working)
         dataset1 = dataset1.rename({meta1.longitude_name: 'x', meta1.latitude_name: 'y'})
         dataset2 = dataset2.rename({meta2.longitude_name: 'x', meta2.latitude_name: 'y'})
+
         logger.info("Done renaming datasets coordinates into xy.")
 
         pixel_spacing_lon1 = dataset1.coords["x"][1] - dataset1.coords["x"][0]
@@ -474,6 +493,7 @@ class ProductIntersection:
         Dict[str, xarray.Dataset]
             Formatted common zone datasets
         """
+
         def apply_attributes_changes(meta, ds):
             necessary_attrs = meta.necessary_attrs_in_coloc_product
             attrs_rename_func = meta.rename_attrs_in_coloc_product
@@ -579,4 +599,18 @@ class ProductIntersection:
             self.colocation_product = self.merge_datasets
         return self.colocation_product
 
+    @property
+    def meta1(self):
+        return self._meta1
 
+    @property
+    def meta2(self):
+        return self._meta2
+
+    @meta1.setter
+    def meta1(self, value):
+        self._meta1 = value
+
+    @meta2.setter
+    def meta2(self, value):
+        self._meta2 = value
