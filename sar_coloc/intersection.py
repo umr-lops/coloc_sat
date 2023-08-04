@@ -26,6 +26,7 @@ class ProductIntersection:
         self.common_footprint = None
         self.resampled_datasets = None
         self.common_zone_datasets = None
+        self.colocation_product = None
 
     @property
     def has_intersection(self):
@@ -43,7 +44,7 @@ class ProductIntersection:
             is_intersected = fp1.intersects(fp2)
             if is_intersected:
                 self.fill_common_footprint(fp1.intersection(fp2))
-            return self.is_considered_as_intersected
+            return self._is_considered_as_intersected
         elif ((self.meta1.acquisition_type == 'truncated_swath') and
               (self.meta2.acquisition_type == 'daily_regular_grid')) or \
                 ((self.meta2.acquisition_type == 'truncated_swath') and
@@ -77,13 +78,15 @@ class ProductIntersection:
             self.common_footprint = self.common_footprint.union(footprint)
 
     @property
-    def is_considered_as_intersected(self):
+    def _is_considered_as_intersected(self):
         if self.common_footprint is None:
             return False
-        elif get_polygon_area_in_km_squared(self.common_footprint) >= self.minimal_area:
-            return True
         else:
-            return False
+            area_intersection = get_polygon_area_in_km_squared(self.common_footprint)
+            if area_intersection >= self.minimal_area:
+                return True
+            else:
+                return False
 
     def intersection_drg_truncated_swath(self):
         def rasterize_polygon(open_acquisition, polygon):
@@ -135,7 +138,7 @@ class ProductIntersection:
                 is_intersected = poly.intersects(fp)
                 if is_intersected:
                     self.fill_common_footprint(poly.intersection(fp))
-                return self.is_considered_as_intersected
+                return self._is_considered_as_intersected
             else:
                 return False
 
@@ -218,7 +221,7 @@ class ProductIntersection:
                 is_intersected = poly.intersects(footprint)
                 if is_intersected:
                     self.fill_common_footprint(poly.intersection(footprint))
-                return self.is_considered_as_intersected
+                return self._is_considered_as_intersected
             else:
                 return False
 
@@ -364,7 +367,7 @@ class ProductIntersection:
         logger.info('Done getting resampled datasets')
 
         meta1 = self.meta1
-        meta2 = self.meta1
+        meta2 = self.meta2
 
         # transform polygons in range 0-360
         def shape360(lon, lat):
@@ -408,7 +411,8 @@ class ProductIntersection:
         logger.info("Reshaping datasets to keep common zone.")
         # reshape to reduce dataset size (avoid having too much non-necessary nan)
         # find lon_min, lon_max, lat_min and lat_max
-        lon2D, lat2D = np.meshgrid(dataset1_common_zone.lon, dataset1_common_zone.lat)
+        lon2D, lat2D = np.meshgrid(dataset1_common_zone[meta1.longitude_name],
+                                   dataset1_common_zone[meta1.latitude_name])
         lon2D[~geometry_mask] = np.nan
         lat2D[~geometry_mask] = np.nan
         # We need to round these values to avoid a bug which can occur when merging datasets
@@ -418,18 +422,27 @@ class ProductIntersection:
         lat_max = round(np.nanmax(lat2D), 6)
         # reshape
         dataset1_common_zone = dataset1_common_zone.where(
-            (dataset1_common_zone.lon > lon_min) & (dataset1_common_zone.lon < lon_max) & (
-                    dataset1_common_zone.lat > lat_min) & (dataset1_common_zone.lat < lat_max), drop=True)
+            (dataset1_common_zone[meta1.longitude_name] > lon_min) &
+            (dataset1_common_zone[meta1.longitude_name] < lon_max) &
+            (dataset1_common_zone[meta1.latitude_name] > lat_min) &
+            (dataset1_common_zone[meta1.latitude_name] < lat_max), drop=True)
         dataset2_common_zone = dataset2_common_zone.where(
-            (dataset2_common_zone.lon > lon_min) & (dataset2_common_zone.lon < lon_max) & (
-                    dataset2_common_zone.lat > lat_min) & (dataset2_common_zone.lat < lat_max), drop=True)
+            (dataset2_common_zone[meta2.longitude_name] > lon_min) &
+            (dataset2_common_zone[meta2.longitude_name] < lon_max) &
+            (dataset2_common_zone[meta2.latitude_name] > lat_min) &
+            (dataset2_common_zone[meta2.latitude_name] < lat_max), drop=True)
         dataset1_common_zone = dataset1_common_zone.assign_attrs({"polygon_common_zone": str(poly_intersection)})
         logger.info("Done reshaping datasets to keep common zone.")
 
         logger.info("Modifying datasets coords in range -180,180.")
-        dataset1_common_zone = dataset1_common_zone.assign_coords(lon=(((dataset1_common_zone.lon + 180) % 360) - 180))
-        dataset2_common_zone = dataset2_common_zone.assign_coords(lon=(((dataset2_common_zone.lon + 180) % 360) - 180))
+        dataset1_common_zone = dataset1_common_zone.assign_coords(
+            lon=(((dataset1_common_zone[meta1.longitude_name] + 180) % 360) - 180))
+        dataset2_common_zone = dataset2_common_zone.assign_coords(
+            lon=(((dataset2_common_zone[meta2.longitude_name] + 180) % 360) - 180))
         logger.info("Modifying datasets coords in range -180,180.")
+
+        dataset1_common_zone = dataset1_common_zone.where(np.isfinite(dataset1_common_zone[meta1.time_name]), drop=True)
+        dataset2_common_zone = dataset2_common_zone.where(np.isfinite(dataset2_common_zone[meta2.time_name]), drop=True)
 
         logger.info("Done getting common zone.")
         return dataset1_common_zone, dataset2_common_zone
@@ -445,8 +458,8 @@ class ProductIntersection:
         Fills common zone datasets in the attribute `self.common_zone_datasets`
         """
         _tmp_dic = {}
-        # put 2 datasets in their common zone and keep only common points for each variable
-        dataset1_common_zone, dataset2_common_zone = get_common_points(*self.get_common_zone)
+        # put 2 datasets in their common zone
+        dataset1_common_zone, dataset2_common_zone = self.get_common_zone
         _tmp_dic[self.meta1.product_name] = dataset1_common_zone.squeeze()
         _tmp_dic[self.meta2.product_name] = dataset2_common_zone.squeeze()
         self.common_zone_datasets = _tmp_dic
@@ -484,7 +497,12 @@ class ProductIntersection:
             ds = ds.drop_vars([var for var in ds.variables if var in unecessary_vars])
             return ds
 
-        def rename_vars_and_attributes(ds, ds_nb):
+        def rename_common_vars(meta, ds):
+            if hasattr(meta, 'rename_vars_in_coloc'):
+                ds = meta.rename_vars_in_coloc(ds)
+            return ds
+
+        def rename_vars_and_attributes_with_nb(ds, ds_nb):
             for var in ds.data_vars:
                 ds = ds.rename_vars({var: f"{var}{ds_nb}"})
             attributes = ds.attrs
@@ -505,12 +523,17 @@ class ProductIntersection:
         # Variable selection
         dataset1 = only_keep_required_vars(self.meta1, dataset1)
         dataset2 = only_keep_required_vars(self.meta2, dataset2)
-        # TODO : add common mask
+        # rename common vars
+        dataset1 = rename_common_vars(self.meta1, dataset1)
+        dataset2 = rename_common_vars(self.meta2, dataset2)
+        # Keep only common points between the 2 datasets for common variables
+        dataset1, dataset2 = get_common_points(dataset1, dataset2)
         # Add the dataset number in the variable and attributes name
-        dataset1 = rename_vars_and_attributes(dataset1, 1)
-        dataset2 = rename_vars_and_attributes(dataset2, 2)
+        dataset1 = rename_vars_and_attributes_with_nb(dataset1, 1)
+        dataset2 = rename_vars_and_attributes_with_nb(dataset2, 2)
         return dataset1, dataset2
 
+    @property
     def merge_datasets(self):
         """
         Merge 2 formatted common zones datasets in an only dataset
@@ -527,10 +550,12 @@ class ProductIntersection:
             start1, stop1 = dataset1.attrs['measurementStartDate1'], dataset1.attrs['measurementStopDate1']
             start2, stop2 = dataset2.attrs['measurementStartDate2'], dataset2.attrs['measurementStopDate2']
             attrs['time_difference'] = mean_time_diff(start1, stop1, start2, stop2)
+            attrs['polygon_common_zone'] = get_footprint_from_ll_ds(self.meta1, dataset1)
+            attrs['area_intersection'] = get_polygon_area_in_km_squared(attrs['polygon_common_zone'])
             # TODO: add correlation_coefficient + standard_deviation + vmax_m_s + scatter_index + counted_points
             return attrs
 
-        merged_ds = xr.merge([dataset1, dataset2])
+        merged_ds = xr.merge([dataset1, dataset2], compat='override')
         merged_ds.attrs |= get_common_attrs()
         merged_ds.attrs |= dataset1.attrs
         merged_ds.attrs |= dataset2.attrs
@@ -539,17 +564,19 @@ class ProductIntersection:
     @property
     def coloc_product_datasets(self):
         """
-        Get final co-located product datasets.
+        Get final co-located product dataset.
         Notes :
             It also fills the common zone datasets in the attribute `self.common_zone_datasets` when they don't exist.
             It also fills the resampled datasets in the attribute `self.resampled_datasets` when they don't exist.
-
+            It also formats the datasets (var and attribute names + add new attributes)
+            It also stores the result in `self.colocation_product`
         Returns
         -------
         Dict[str, xarray.Dataset]
            Final co-located product datasets.
         """
-        if self.common_zone_datasets is None:
-            self.fill_common_zone_datasets()
-        # TODO : call self.merge_datasets + store the result
-        return self.common_zone_datasets
+        if self.colocation_product is None:
+            self.colocation_product = self.merge_datasets
+        return self.colocation_product
+
+
