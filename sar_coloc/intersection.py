@@ -7,15 +7,16 @@ import shapely
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
     get_polygon_area_in_km_squared, get_transform, get_common_points
-from .tools import mean_time_diff, common_var_names
+from .tools import mean_time_diff, reformat_meta
 
 logger = logging.getLogger(__name__)
 
 
 class ProductIntersection:
     def __init__(self, meta1, meta2, delta_time=60, minimal_area=1600):
-        self._meta1 = meta1
-        self._meta2 = meta2
+        # Store the meta and rename longitude/latitude by reference ones
+        self._meta1 = reformat_meta(meta1)
+        self._meta2 = reformat_meta(meta2)
         self.delta_time = delta_time
         self.minimal_area = minimal_area
         self.delta_time_np = np.timedelta64(delta_time, 'm')
@@ -160,7 +161,7 @@ class ProductIntersection:
             for orbit in daily.dataset[daily.orbit_segment_name].data:
                 sub_daily = copy.copy(daily)
                 # Select orbit in the dataset of sub_daily
-                sub_daily.set_dataset(sub_daily.dataset.sel(**{sub_daily.orbit_segment_name: orbit}))
+                sub_daily.dataset = sub_daily.dataset.sel(**{sub_daily.orbit_segment_name: orbit})
                 _ds = spatial_temporal_intersection(sub_daily, polygon=fp)
                 li.append(_ds.assign_coords(**{sub_daily.orbit_segment_name: orbit}))
                 orbit_intersections.append(verify_intersection(_ds))
@@ -245,7 +246,7 @@ class ProductIntersection:
             for orbit in swath.dataset[swath.orbit_segment_name]:
                 sub_swath = copy.copy(swath)
                 # Select orbit in the dataset of sub_daily
-                sub_swath.set_dataset(sub_swath.dataset.sel(**{sub_swath.orbit_segment_name: orbit}))
+                sub_swath.dataset = sub_swath.dataset.sel(**{sub_swath.orbit_segment_name: orbit})
                 orbit_intersections.append(verify_intersection(sub_swath, footprint=fp))
             # if one of the orbit has an intersection, return True
             return any(orbit_intersections)
@@ -274,17 +275,6 @@ class ProductIntersection:
             Two first values of the dictionary are resampled datasets from meta1 and meta 2.  Last value is a string
             that precise which dataset of both has been reprojected.
         """
-
-        def rename_dims(meta, ds):
-            # rename longitude, latitude and time by references name and modify concerned attributes in the metaobjects
-            ds = ds.rename_vars({meta.longitude_name: common_var_names['longitude'],
-                                 meta.latitude_name: common_var_names['latitude']})
-            #meta.__setattr__('longitude_name', common_var_names['longitude'])
-            #meta.__setattr__('latitude_name', common_var_names['latitude'])
-            meta.longitude_name = common_var_names['longitude']
-            meta.latitude_name = common_var_names['latitude']
-            return meta, ds
-
         logger.info("Starting resampling.")
         existing_dataset_keys = list(self._datasets.keys())
         logger.info("Getting datasets.")
@@ -300,15 +290,9 @@ class ProductIntersection:
             dataset2 = self.meta2.dataset
         logger.info("meta1 dataset opened.")
 
-        # rename lon / lat in the metaobjects and in the dataset
-        meta1, dataset1 = rename_dims(self.meta1, dataset1)
-        meta2, dataset2 = rename_dims(self.meta2, dataset2)
-        self.meta1 = meta1
-        self.meta2 = meta2
-        # FIXME : ERROR FOR CASE WINDSAT -SAR : meta lon and lat names are not changed (whereas i am using setters)
-        """# alias to metaobjects
+        # alias to metaobjects
         meta1 = self.meta1
-        meta2 = self.meta2"""
+        meta2 = self.meta2
 
         # Set crs if not defined
         if dataset1.rio.crs is None:
