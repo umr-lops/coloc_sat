@@ -14,8 +14,8 @@ class GetSmosMeta:
         self._time_name = 'measurement_time'
         self._longitude_name = 'lon'
         self._latitude_name = 'lat'
-        self.dataset = open_smos_file(product_path).squeeze().load()
-        self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
+        self._dataset = open_smos_file(product_path).squeeze().load()
+        self.dataset = correct_dataset(self.dataset, self.longitude_name)
 
     @property
     def start_date(self):
@@ -170,16 +170,29 @@ class GetSmosMeta:
         """
         return 'daily_regular_grid'
 
-    def set_dataset(self, dataset):
+    @property
+    def dataset(self):
+        """
+        Getter for the acquisition dataset
+
+        Returns
+        -------
+        xarray.Dataset
+            Acquisition dataset
+        """
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, value):
         """
         Setter of attribute `self.dataset`
 
         Parameters
         ----------
-        dataset: xarray.Dataset
+        value: xarray.Dataset
             new Dataset
         """
-        self.dataset = dataset
+        self._dataset = value
 
     @property
     def orbit_segment_name(self):

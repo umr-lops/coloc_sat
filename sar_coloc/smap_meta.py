@@ -13,10 +13,10 @@ class GetSmapMeta:
         self._time_name = 'time'
         self._longitude_name = 'lon'
         self._latitude_name = 'lat'
-        self.dataset = open_nc(product_path).load()
-        self.set_dataset(self.add_source_reference_attribute(ds=self.dataset))
-        self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
-        self.set_dataset(convert_mingmt(self))
+        self._dataset = open_nc(product_path).load()
+        self.dataset = self.add_source_reference_attribute(ds=self.dataset)
+        self.dataset = correct_dataset(self.dataset, self.longitude_name)
+        self.dataset = convert_mingmt(self)
         # Modify orbit values by ascending and descending to be more significant
         self.dataset[self.orbit_segment_name] = \
             xr.where(self.dataset[self.orbit_segment_name] == 0, 'ascending', 'descending')
@@ -57,16 +57,29 @@ class GetSmapMeta:
         """
         return self._time_name
 
-    def set_dataset(self, dataset):
+    @property
+    def dataset(self):
+        """
+        Getter for the acquisition dataset
+
+        Returns
+        -------
+        xarray.Dataset
+            Acquisition dataset
+        """
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, value):
         """
         Setter of attribute `self.dataset`
 
         Parameters
         ----------
-        dataset: xarray.Dataset
+        value: xarray.Dataset
             new Dataset
         """
-        self.dataset = dataset
+        self._dataset = value
 
     @property
     def acquisition_type(self):

@@ -6,11 +6,11 @@ class GetEra5Meta:
     def __init__(self, product_path, listing=True):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
-        self.dataset = None
+        self._dataset = None
         if not listing:
-            self.dataset = open_nc(product_path).load()
-            self.set_dataset(correct_dataset(self.dataset, lon_name=self.longitude_name(0.25)))
-            self.set_dataset(correct_dataset(self.dataset, lon_name=self.longitude_name(0.5)))
+            self._dataset = open_nc(product_path).load()
+            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.25))
+            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name(0.5))
 
     @property
     def start_date(self):
@@ -113,16 +113,29 @@ class GetEra5Meta:
         """
         return 'model_regular_grid'
 
-    def set_dataset(self, dataset):
+    @property
+    def dataset(self):
+        """
+        Getter for the acquisition dataset
+
+        Returns
+        -------
+        xarray.Dataset
+            Acquisition dataset
+        """
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, value):
         """
         Setter of attribute `self.dataset`
 
         Parameters
         ----------
-        dataset: xarray.Dataset
+        value: xarray.Dataset
             new Dataset
         """
-        self.dataset = dataset
+        self._dataset = value
 
     @property
     def orbit_segment_name(self):

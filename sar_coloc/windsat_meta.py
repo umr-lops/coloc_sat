@@ -13,9 +13,9 @@ class GetWindSatMeta:
         self._time_name = 'time'
         self._longitude_name = 'longitude'
         self._latitude_name = 'latitude'
-        self.dataset = to_xarray_dataset(WindSatDaily(product_path, np.nan)).load()
-        self.set_dataset(correct_dataset(self.dataset, self.longitude_name))
-        self.set_dataset(convert_mingmt(self))
+        self._dataset = to_xarray_dataset(WindSatDaily(product_path, np.nan)).load()
+        self.dataset = correct_dataset(self.dataset, self.longitude_name)
+        self.dataset = convert_mingmt(self)
 
     @property
     def longitude_name(self):
@@ -53,16 +53,29 @@ class GetWindSatMeta:
         """
         return self._time_name
 
-    def set_dataset(self, dataset):
+    @property
+    def dataset(self):
+        """
+        Getter for the acquisition dataset
+
+        Returns
+        -------
+        xarray.Dataset
+            Acquisition dataset
+        """
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, value):
         """
         Setter of attribute `self.dataset`
 
         Parameters
         ----------
-        dataset: xarray.Dataset
+        value: xarray.Dataset
             new Dataset
         """
-        self.dataset = dataset
+        self._dataset = value
 
     @property
     def day_date(self):

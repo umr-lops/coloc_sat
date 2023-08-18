@@ -366,3 +366,10 @@ class GetSarMeta:
     @latitude_name.setter
     def latitude_name(self, value):
         self._latitude_name = value
+
+    @dataset.setter
+    def dataset(self, value):
+        if self.is_safe:
+            raise self.WrongProductTypeError('`dataset` property can only be used for level 1 products')
+        else:
+            self._l2_info = value
