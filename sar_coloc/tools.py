@@ -712,3 +712,39 @@ def mean_time_diff(start1, stop1, start2, stop2):
     mean1 = date_means(start1, stop1)
     mean2 = date_means(start2, stop2)
     return abs(mean1 - mean2)
+
+
+def reformat_meta(meta):
+    """
+    Rename the longitude and latitude names in the dataset and in the properties
+
+    Parameters
+    ----------
+    meta: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetSmapMeta | sar_coloc.GetHy2Meta |
+    sar_coloc.GetEra5Meta | sar_coloc.GetWindsatMeta
+        Meta object
+
+    Returns
+    -------
+    sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetSmapMeta | sar_coloc.GetHy2Meta |
+    sar_coloc.GetEra5Meta | sar_coloc.GetWindsatMeta
+        Meta object reformatted
+    """
+    satellite_type = extract_name_from_meta_class(meta)
+    if satellite_type == 'Sar':
+        if meta.is_safe:
+            # Safe product don't have dataset property
+            return meta
+    elif satellite_type == 'Era5':
+        # ERA5 has a different format of latitude and longitude because it depends on the resolution
+        return meta
+    ds = meta.dataset
+    # rename longitude, latitude by references name and modify concerned attributes in the metaobjects
+    if meta.longitude_name != common_var_names['longitude']:
+        ds = ds.rename({meta.longitude_name: common_var_names['longitude']})
+    if meta.latitude_name != common_var_names['latitude']:
+        ds = ds.rename({meta.latitude_name: common_var_names['latitude']})
+    meta.dataset = ds
+    meta.longitude_name = common_var_names['longitude']
+    meta.latitude_name = common_var_names['latitude']
+    return meta
