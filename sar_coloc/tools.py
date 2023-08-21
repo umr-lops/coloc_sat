@@ -56,27 +56,27 @@ def get_acquisition_root_paths(ds_name):
     return roots[ds_name]
 
 
-def call_meta_class(file, listing=True):
+def call_meta_class(file, product_generation=False):
     sar_satellites = ['RS2', 'S1A', 'S1B', 'RCM1', 'RCM2', 'RCM3']
     basename = os.path.basename(file).upper()
     if basename.split('_')[0].split('-')[0] in sar_satellites:
         from .sar_meta import GetSarMeta
-        return GetSarMeta(file, listing=listing)
+        return GetSarMeta(file, product_generation=product_generation)
     elif basename.startswith('SM_'):
         from .smos_meta import GetSmosMeta
-        return GetSmosMeta(file, listing=listing)
+        return GetSmosMeta(file, product_generation=product_generation)
     elif basename.startswith('WSAT_'):
         from .windsat_meta import GetWindSatMeta
-        return GetWindSatMeta(file, listing=listing)
+        return GetWindSatMeta(file, product_generation=product_generation)
     elif basename.split('_')[1] == 'SMAP':
         from .smap_meta import GetSmapMeta
-        return GetSmapMeta(file, listing=listing)
+        return GetSmapMeta(file, product_generation=product_generation)
     elif basename.split('_')[3] == 'HY':
         from .hy2_meta import GetHy2Meta
-        return GetHy2Meta(file, listing=listing)
+        return GetHy2Meta(file, product_generation=product_generation)
     elif basename.startswith('ERA_5'):
         from .era5_meta import GetEra5Meta
-        return GetEra5Meta(file, listing=listing)
+        return GetEra5Meta(file, product_generation=product_generation)
     else:
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
@@ -716,7 +716,7 @@ def mean_time_diff(start1, stop1, start2, stop2):
 
 def reformat_meta(meta):
     """
-    Rename the longitude and latitude names in the dataset and in the properties
+    Rename the longitude and latitude names in the dataset and in the properties.
 
     Parameters
     ----------
@@ -735,9 +735,6 @@ def reformat_meta(meta):
         if meta.is_safe:
             # Safe product don't have dataset property
             return meta
-    elif satellite_type == 'Era5':
-        # ERA5 has a different format of latitude and longitude because it depends on the resolution
-        return meta
     ds = meta.dataset
     # rename longitude, latitude by references name and modify concerned attributes in the metaobjects
     if meta.longitude_name != common_var_names['longitude']:
