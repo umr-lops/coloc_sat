@@ -5,7 +5,7 @@ import numpy as np
 
 
 class GetSarMeta:
-    def __init__(self, product_path, listing=True):
+    def __init__(self, product_path, product_generation=False):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self._l1_info = None
@@ -13,6 +13,7 @@ class GetSarMeta:
         self._time_name = None
         self._longitude_name = None
         self._latitude_name = None
+        self.product_generation = product_generation
         if self.is_safe:
             self._l1_info = {'meta': call_sar_meta(self.product_path),
                              'dataset_names': [],

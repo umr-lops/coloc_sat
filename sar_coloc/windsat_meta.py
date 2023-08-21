@@ -7,9 +7,10 @@ from .windsat_daily_v7 import WindSatDaily, to_xarray_dataset
 
 
 class GetWindSatMeta:
-    def __init__(self, product_path, listing=True):
+    def __init__(self, product_path, product_generation=False):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
+        self.product_generation = product_generation
         self._time_name = 'time'
         self._longitude_name = 'longitude'
         self._latitude_name = 'latitude'

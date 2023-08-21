@@ -8,12 +8,13 @@ def extract_wind_speed(smos_dataset):
 
 
 class GetHy2Meta:
-    def __init__(self, product_path, listing=True):
+    def __init__(self, product_path, product_generation=False):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
+        self.product_generation = product_generation
         self._time_name = 'time'
-        self._longitude_name = 'longitude'
-        self._latitude_name = 'latitude'
+        self._longitude_name = 'lon'
+        self._latitude_name = 'lat'
         self._dataset = open_nc(product_path).load()
         self.dataset = correct_dataset(self.dataset, self.longitude_name)
 

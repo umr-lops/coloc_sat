@@ -7,9 +7,10 @@ from .tools import open_nc, convert_mingmt, correct_dataset, common_var_names
 
 
 class GetSmapMeta:
-    def __init__(self, product_path, listing=True):
+    def __init__(self, product_path, product_generation=False):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
+        self.product_generation = product_generation
         self._time_name = 'time'
         self._longitude_name = 'lon'
         self._latitude_name = 'lat'
