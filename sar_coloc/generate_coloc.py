@@ -63,18 +63,18 @@ class GenerateColoc:
         self.level = kwargs.get('level', None)
         self.ds_name = kwargs.get('ds_name', None)
         self.input_ds = kwargs.get('input_ds', None)
+        self._product_generation = product_generation
+        self._listing = listing
         self.product1_id = product1_id
-        self.product1 = call_meta_class(self.product1_id, listing=listing)
+        self.product1 = call_meta_class(self.product1_id, product_generation=self._product_generation)
         self.product2_id = kwargs.get('product2_id', None)
         if self.product2_id is not None:
-            self.product2 = call_meta_class(self.product2_id, None)
+            self.product2 = call_meta_class(self.product2_id, product_generation=self._product_generation)
         else:
             self.product2 = None
         self.delta_time = delta_time
         self._minimal_area = minimal_area
         self.delta_time_np = np.timedelta64(delta_time, 'm')
-        self._listing = listing
-        self._product_generation = product_generation
         self.destination_folder = destination_folder
         self._listing_filename = kwargs.get('listing_filename', None)
         self._colocation_filename = kwargs.get('colocation_filename', None)
@@ -262,7 +262,7 @@ class GenerateColoc:
         _intersections = {}
         for file in self.comparison_files:
             try:
-                opened_file = call_meta_class(file)
+                opened_file = call_meta_class(file, product_generation=self._product_generation)
                 intersecter = ProductIntersection(self.product1, opened_file, delta_time=self.delta_time,
                                                   minimal_area=self.minimal_area)
                 _intersections[file] = intersecter
