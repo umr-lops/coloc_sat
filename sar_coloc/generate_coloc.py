@@ -306,5 +306,19 @@ class GenerateColoc:
         """
         pass
 
-
-
+    def save_results(self):
+        """
+        Save the result listing as a text file, and / or the resulting co-location product as a netcdf file.
+        The creation depends on the value of the attributes `self.colocated_files` and
+        `self.product_generation(intersection)` for a specific intersection. Paths where files are written is specified
+        in `self.listing_filename(intersection)` and `self.product_generation(intersection)`.
+        """
+        for colocated_file in self.colocated_files:
+            intersection = self.intersections[colocated_file]
+            if self.listing:
+                with open(self.listing_filename(intersection), 'a') as listing_file:
+                    line = f"{self.product1.product_path}:{colocated_file}\n"
+                    listing_file.write(line)
+            if self.product_generation(intersection):
+                coloc_ds = intersection.coloc_product_datasets
+                coloc_ds.to_netcdf(self.colocation_filename(intersection))
