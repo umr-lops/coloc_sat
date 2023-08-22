@@ -251,10 +251,11 @@ class GetEra5Meta:
 
         # Adjust resolution of variables variables that depend on latitude025 and longitude025
         variables_to_adjust = [var_name for var_name in ds.data_vars if
-                               ('latitude025' in ds[var_name].dims) and ('longitude025' in ds[var_name].dims)]
+                               (longitude25 in ds[var_name].dims) and (latitude25 in ds[var_name].dims)]
 
         for var_name in variables_to_adjust:
             ds[var_name] = ds[var_name].interp(latitude025=ds[latitude25], longitude025=ds[longitude25])
+        ds = ds.drop_vars([latitude25, longitude25])
         self.dataset = ds
         # New longitude and latitude names are these with the resolution of 050
         self.longitude_name = longitude50
