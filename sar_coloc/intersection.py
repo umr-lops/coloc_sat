@@ -313,7 +313,7 @@ class ProductIntersection:
         meta1 = self.meta1
         meta2 = self.meta2
 
-        dataset1, dataset2 = get_nearest_time_datasets(dataset1, dataset2)
+        dataset1, dataset2 = get_nearest_time_datasets(meta1, dataset1, meta2, dataset2)
 
         # Set crs if not defined
         if dataset1.rio.crs is None:
@@ -346,10 +346,12 @@ class ProductIntersection:
 
         logger.info("Reprojecting dataset with higher resolution to make it match with the lower resolution one.")
         if pixel_spacing_lon1 * pixel_spacing_lat1 <= pixel_spacing_lon2 * pixel_spacing_lat2:
+            # some product don't have the same resolution, so we apply the same resolution by specifying a resampling
             dataset1 = dataset1.rio.reproject_match(dataset2, resampling=rasterio.enums.Resampling.bilinear)
             reprojected_dataset = "dataset1"
             logger.info("dataset1 reprojected")
         else:
+            # some product don't have the same resolution, so we apply the same resolution by specifying a resampling
             dataset2 = dataset2.rio.reproject_match(dataset1, resampling=rasterio.enums.Resampling.bilinear)
             reprojected_dataset = "dataset2"
             logger.info("dataset2 reprojected.")
