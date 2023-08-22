@@ -153,3 +153,13 @@ def get_common_points(dataset1, dataset2):
         dataset2[variable_name] = dataset2[variable_name].where(common_mask)
 
     return dataset1, dataset2
+
+
+def get_nearest_time_datasets(dataset1, dataset2):
+    if len(dataset1.time) > 1 and len(dataset2.time == 1):
+        nearest_time = min(dataset1.time.data, key=lambda x: abs(x - dataset2.time.data[0]))
+        dataset1 = dataset1.sel(time=nearest_time)
+    elif len(dataset2.time) > 1 and len(dataset1.time == 1):
+        nearest_time = min(dataset2.time.data, key=lambda x: abs(x - dataset1.time.data[0]))
+        dataset2 = dataset2.sel(time=nearest_time)
+    return dataset1, dataset2
