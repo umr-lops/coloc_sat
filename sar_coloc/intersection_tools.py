@@ -158,8 +158,8 @@ def get_common_points(dataset1, dataset2):
 def get_nearest_time_datasets(dataset1, dataset2):
     if len(dataset1.time) > 1 and len(dataset2.time == 1):
         nearest_time = min(dataset1.time.data, key=lambda x: abs(x - dataset2.time.data[0]))
-        dataset1 = dataset1.sel(time=nearest_time)
+        dataset1 = dataset1.sel(time=nearest_time).squeeze()
     elif len(dataset2.time) > 1 and len(dataset1.time == 1):
         nearest_time = min(dataset2.time.data, key=lambda x: abs(x - dataset1.time.data[0]))
-        dataset2 = dataset2.sel(time=nearest_time)
+        dataset2 = dataset2.sel(time=nearest_time).squeeze()
     return dataset1, dataset2
