@@ -264,7 +264,8 @@ class GenerateColoc:
             try:
                 opened_file = call_meta_class(file, product_generation=self._product_generation)
                 intersecter = ProductIntersection(self.product1, opened_file, delta_time=self.delta_time,
-                                                  minimal_area=self.minimal_area)
+                                                  minimal_area=self.minimal_area,
+                                                  product_generation=self._product_generation)
                 _intersections[file] = intersecter
             except FileNotFoundError:
                 pass
