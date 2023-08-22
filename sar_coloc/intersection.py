@@ -4,9 +4,10 @@ import xarray as xr
 import logging
 import rasterio
 import shapely
+import rasterio
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
-    get_polygon_area_in_km_squared, get_transform, get_common_points
+    get_polygon_area_in_km_squared, get_transform, get_common_points, get_nearest_time_datasets
 from .tools import mean_time_diff, reformat_meta
 
 logger = logging.getLogger(__name__)
@@ -57,9 +58,7 @@ class ProductIntersection:
             return self.intersection_swath_truncated_swath()
         elif ((self.meta1.acquisition_type == 'model_regular_grid') or
               (self.meta2.acquisition_type == 'model_regular_grid')):
-            # if it is a model so there is data every day and worldwide => file can be co-located
-            # (model file has been chosen depending on the date)
-            return True
+            return self.intersection_with_model()
         elif (self.meta1.acquisition_type == 'swath') and (self.meta2.acquisition_type == 'swath'):
             return self.intersection_non_truncated_swath_non_truncated_swath()
         elif ((self.meta1.acquisition_type == 'daily_regular_grid') and
@@ -87,6 +86,26 @@ class ProductIntersection:
                 return True
             else:
                 return False
+
+    def intersection_with_model(self):
+        if self.meta1.acquisition_type == 'model_regular_grid':
+            model = self.meta1
+            other_meta = self.meta2
+        elif self.meta2.acquisition_type == 'model_regular_grid':
+            model = self.meta1
+            other_meta = self.meta2
+        if other_meta.acquisition_type == 'model_regular_grid':
+            unique_lon = np.unique(other_meta.dataset[other_meta.longitude_name])
+            unique_lat = np.unique(other_meta.dataset[other_meta.latitude_name])
+            corners = [(min(unique_lon), min(unique_lat)), (min(unique_lon), max(unique_lat)),
+                       (max(unique_lon), max(unique_lat)), (max(unique_lon), min(unique_lat))]
+            fp = shapely.geometry.Polygon(corners)
+        else:
+            fp = get_footprint_from_ll_ds(other_meta)
+        self.fill_common_footprint(fp)
+        # if it is a model so there is data every day and worldwide => file can be co-located
+        # (model file has been chosen depending on the date)
+        return True
 
     def intersection_drg_truncated_swath(self):
         def rasterize_polygon(open_acquisition, polygon):
@@ -294,6 +313,8 @@ class ProductIntersection:
         meta1 = self.meta1
         meta2 = self.meta2
 
+        dataset1, dataset2 = get_nearest_time_datasets(dataset1, dataset2)
+
         # Set crs if not defined
         if dataset1.rio.crs is None:
             dataset1.rio.write_crs(4326, inplace=True)
@@ -325,11 +346,11 @@ class ProductIntersection:
 
         logger.info("Reprojecting dataset with higher resolution to make it match with the lower resolution one.")
         if pixel_spacing_lon1 * pixel_spacing_lat1 <= pixel_spacing_lon2 * pixel_spacing_lat2:
-            dataset1 = dataset1.rio.reproject_match(dataset2)
+            dataset1 = dataset1.rio.reproject_match(dataset2, resampling=rasterio.enums.Resampling.bilinear)
             reprojected_dataset = "dataset1"
             logger.info("dataset1 reprojected")
         else:
-            dataset2 = dataset2.rio.reproject_match(dataset1)
+            dataset2 = dataset2.rio.reproject_match(dataset1, resampling=rasterio.enums.Resampling.bilinear)
             reprojected_dataset = "dataset2"
             logger.info("dataset2 reprojected.")
         logger.info("Done reprojecting dataset.")
@@ -508,7 +529,7 @@ class ProductIntersection:
 
         def rename_vars_and_attributes_with_nb(ds, ds_nb):
             for var in ds.data_vars:
-                ds = ds.rename_vars({var: f"{var}{ds_nb}"})
+                ds = ds.rename_vars({var: f"{var}_{ds_nb}"})
             attributes = ds.attrs
             ds.attrs = {f"{attr}{ds_nb}": ds.attrs[attr] for attr in attributes}
             return ds
