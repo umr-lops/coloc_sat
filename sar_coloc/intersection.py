@@ -2,7 +2,6 @@ import numpy as np
 import copy
 import xarray as xr
 import logging
-import rasterio
 import shapely
 import rasterio
 
@@ -14,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 class ProductIntersection:
-    def __init__(self, meta1, meta2, delta_time=60, minimal_area=1600):
+    def __init__(self, meta1, meta2, delta_time=60, minimal_area=1600, product_generation=True):
         # Store the meta and rename longitude/latitude by reference ones
         self._meta1 = reformat_meta(meta1)
         self._meta2 = reformat_meta(meta2)
+        self.product_generation = product_generation
         self.delta_time = delta_time
         self.minimal_area = minimal_area
         self.delta_time_np = np.timedelta64(delta_time, 'm')
@@ -88,21 +88,57 @@ class ProductIntersection:
                 return False
 
     def intersection_with_model(self):
-        if self.meta1.acquisition_type == 'model_regular_grid':
-            model = self.meta1
-            other_meta = self.meta2
-        elif self.meta2.acquisition_type == 'model_regular_grid':
-            model = self.meta1
-            other_meta = self.meta2
-        if other_meta.acquisition_type == 'model_regular_grid':
-            unique_lon = np.unique(other_meta.dataset[other_meta.longitude_name])
-            unique_lat = np.unique(other_meta.dataset[other_meta.latitude_name])
-            corners = [(min(unique_lon), min(unique_lat)), (min(unique_lon), max(unique_lat)),
-                       (max(unique_lon), max(unique_lat)), (max(unique_lon), min(unique_lat))]
-            fp = shapely.geometry.Polygon(corners)
-        else:
-            fp = get_footprint_from_ll_ds(other_meta)
-        self.fill_common_footprint(fp)
+        def rasterize_polygon(open_acquisition, polygon):
+            if open_acquisition.acquisition_type == 'model_regular_grid':
+                lon_name = open_acquisition.longitude_name
+                lat_name = open_acquisition.latitude_name
+                min_bounds = (min(np.unique(open_acquisition.dataset[lon_name])),
+                              min(np.unique(open_acquisition.dataset[lat_name])))
+                # we can get resolutions like this because it is a regular grid
+                lon_res = abs(open_acquisition.dataset[lon_name][1] - open_acquisition.dataset[lon_name][0])
+                lat_res = abs(open_acquisition.dataset[lat_name][1] - open_acquisition.dataset[lat_name][0])
+                out_shape = [len(open_acquisition.dataset[lat_name]), len(open_acquisition.dataset[lon_name])]
+                transform = rasterio.Affine.translation(min_bounds[0], min_bounds[1]) * rasterio.Affine.scale(lon_res,
+                                                                                                              lat_res)
+                return rasterio.features.rasterize(shapes=[polygon], out_shape=out_shape, transform=transform)
+            else:
+                raise ValueError('`rasterize_polygon` only can be applied on daily regular grid acquisition')
+
+        def geographic_intersection(open_acquisition, polygon=None):
+            if open_acquisition.acquisition_type == 'model_regular_grid':
+                if polygon is None:
+                    return open_acquisition.dataset
+                else:
+                    lon_name = open_acquisition.longitude_name
+                    lat_name = open_acquisition.latitude_name
+
+                    rasterized = rasterize_polygon(open_acquisition, polygon)
+                    dataset = open_acquisition.dataset.where(rasterized)
+
+                    dataset = dataset.dropna(lon_name, how='all')
+                    dataset = dataset.dropna(lat_name, how='all')
+                    return dataset
+            else:
+                raise ValueError('`geographic_intersection` only can be applied on model regular grid acquisition')
+
+        if self.product_generation:
+            if self.meta1.acquisition_type == 'model_regular_grid':
+                model = self.meta1
+                other_meta = self.meta2
+            elif self.meta2.acquisition_type == 'model_regular_grid':
+                model = self.meta2
+                other_meta = self.meta1
+            if other_meta.acquisition_type == 'model_regular_grid':
+                unique_lon = np.unique(other_meta.dataset[other_meta.longitude_name])
+                unique_lat = np.unique(other_meta.dataset[other_meta.latitude_name])
+                corners = [(min(unique_lon), min(unique_lat)), (min(unique_lon), max(unique_lat)),
+                           (max(unique_lon), max(unique_lat)), (max(unique_lon), min(unique_lat))]
+                fp = shapely.geometry.Polygon(corners)
+            else:
+                fp = get_footprint_from_ll_ds(other_meta)
+            if other_meta.acquisition_type == 'truncated_swath':
+                self._datasets[model.product_name] = geographic_intersection(model, polygon=other_meta.footprint)
+            self.fill_common_footprint(fp)
         # if it is a model so there is data every day and worldwide => file can be co-located
         # (model file has been chosen depending on the date)
         return True
