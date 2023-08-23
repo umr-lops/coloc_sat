@@ -673,7 +673,6 @@ class ProductIntersection:
             with open(Path(__file__).resolve().parent / "config_version.json", "r") as config_file:
                 config_data = json.load(config_file)
             attrs['version'] = config_data["version"]
-            # TODO: add correlation_coefficient + standard_deviation + vmax_m_s + scatter_index + counted_points
             return attrs
 
         merged_ds = xr.merge([dataset1, dataset2], compat='override')
