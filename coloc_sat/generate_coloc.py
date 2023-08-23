@@ -1,3 +1,5 @@
+import os.path
+
 from .tools import call_meta_class, get_all_comparison_files, extract_name_from_meta_class
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
@@ -319,8 +321,12 @@ class GenerateColoc:
             if self.listing:
                 line = f"{self.product1.product_path}:{colocated_file}\n"
                 # only write the 2 co-located product if the co-location doesn't exist in the listing file
-                with open(self.listing_filename(intersection), 'r') as listing_file:
-                    existing_lines = listing_file.readlines()
+                if os.path.exists(self.listing_filename(intersection)):
+                    with open(self.listing_filename(intersection), 'r') as listing_file:
+                        existing_lines = listing_file.readlines()
+                else:
+                    # if the listing file doesn't exist, so there are no existing lines
+                    existing_lines = []
                 if line not in existing_lines:
                     with open(self.listing_filename(intersection), 'a') as listing_file:
                         listing_file.write(line)
