@@ -317,9 +317,13 @@ class GenerateColoc:
         for colocated_file in self.colocated_files:
             intersection = self.intersections[colocated_file]
             if self.listing:
-                with open(self.listing_filename(intersection), 'a') as listing_file:
-                    line = f"{self.product1.product_path}:{colocated_file}\n"
-                    listing_file.write(line)
+                line = f"{self.product1.product_path}:{colocated_file}\n"
+                # only write the 2 co-located product if the co-location doesn't exist in the listing file
+                with open(self.listing_filename(intersection), 'r') as listing_file:
+                    existing_lines = listing_file.readlines()
+                if line not in existing_lines:
+                    with open(self.listing_filename(intersection), 'a') as listing_file:
+                        listing_file.write(line)
             if self.product_generation(intersection):
                 coloc_ds = intersection.coloc_product_datasets
                 coloc_ds.to_netcdf(self.colocation_filename(intersection))
