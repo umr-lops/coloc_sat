@@ -2,7 +2,7 @@ import os
 import numpy as np
 from datetime import datetime
 
-from sar_coloc.tools import correct_dataset, convert_mingmt, common_var_names
+from .tools import correct_dataset, convert_mingmt, common_var_names
 from .windsat_daily_v7 import WindSatDaily, to_xarray_dataset
 
 
