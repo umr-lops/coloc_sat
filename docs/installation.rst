@@ -8,11 +8,11 @@ Installation
 Stable release
 --------------
 
-To install sar_coloc, run this command in your terminal:
+To install coloc_sat, run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install sar_coloc
+    $ pip install coloc_sat
 
 This is the preferred method to install sar_coloc, as it will always install the most recent stable release.
 
@@ -32,13 +32,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/yreynaud/sar_coloc
+    $ git clone git://github.com/umr-lops/coloc_sat
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/yreynaud/sar_coloc/tarball/master
+    $ curl -OJL https://github.com/umr-lops/coloc_sat/tarball/master
 
 Once you have a copy of the source, you can install it with:
 
@@ -47,5 +47,5 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/yreynaud/sar_coloc
-.. _tarball: https://github.com/yreynaud/sar_coloc/tarball/master
+.. _Github repo: https://github.com/umr-lops/coloc_sat
+.. _tarball: https://github.com/umr-lops/sar_coloc/tarball/master

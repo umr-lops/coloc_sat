@@ -2,6 +2,6 @@
 Usage
 =====
 
-To use sar_coloc in a project::
+To use coloc_sat in a project::
 
-    import sar_coloc
+    import coloc_sat

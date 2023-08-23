@@ -1,14 +1,13 @@
-"""Top-level package for sar_coloc."""
+"""Top-level package for coloc_sat."""
 
 __author__ = """Yann Reynaud"""
 __email__ = 'yann.reynaud.2@ifremer.fr'
 __version__ = '0.1.0'
-__all__ = ['GetSarMeta', 'GetEra5Meta', 'GetHy2Meta', 'GetSmosMeta', 'FindProductColoc', 'GetWindSatMeta',
+__all__ = ['GetSarMeta', 'GetEra5Meta', 'GetHy2Meta', 'GetSmosMeta', 'GetWindSatMeta',
            'GetSmapMeta', 'ColocOnDataset', 'ProductIntersection', 'GenerateColoc']
 
 from .sar_meta import GetSarMeta
 from .era5_meta import GetEra5Meta
-from .find_product_coloc import FindProductColoc
 from .hy2_meta import GetHy2Meta
 from .smos_meta import GetSmosMeta
 from .windsat_meta import GetWindSatMeta
