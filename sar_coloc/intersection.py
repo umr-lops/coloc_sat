@@ -7,7 +7,7 @@ import rasterio
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
     get_polygon_area_in_km_squared, get_transform, get_common_points, get_nearest_time_datasets
-from .tools import mean_time_diff, reformat_meta
+from .tools import mean_time_diff, reformat_meta, convert_str_to_polygon
 
 logger = logging.getLogger(__name__)
 
@@ -569,7 +569,7 @@ class ProductIntersection:
             for var in ds.data_vars:
                 ds = ds.rename_vars({var: f"{var}_{ds_nb}"})
             attributes = ds.attrs
-            ds.attrs = {f"{attr}{ds_nb}": ds.attrs[attr] for attr in attributes}
+            ds.attrs = {f"{attr}_{ds_nb}": ds.attrs[attr] for attr in attributes}
             return ds
 
         if self.common_zone_datasets is None:
@@ -608,12 +608,17 @@ class ProductIntersection:
         """
         dataset1, dataset2 = self.format_datasets()
 
+        def poly_common_zone():
+            fp1 = convert_str_to_polygon(dataset1.attrs['footprint_1'])
+            fp2 = convert_str_to_polygon(dataset2.attrs['footprint_2'])
+            return str(fp1.intersection(fp2))
+
         def get_common_attrs():
             attrs = {}
-            start1, stop1 = dataset1.attrs['measurementStartDate1'], dataset1.attrs['measurementStopDate1']
-            start2, stop2 = dataset2.attrs['measurementStartDate2'], dataset2.attrs['measurementStopDate2']
+            start1, stop1 = dataset1.attrs['measurementStartDate_1'], dataset1.attrs['measurementStopDate_1']
+            start2, stop2 = dataset2.attrs['measurementStartDate_2'], dataset2.attrs['measurementStopDate_2']
             attrs['time_difference'] = str(mean_time_diff(start1, stop1, start2, stop2))
-            attrs['polygon_common_zone'] = str(get_footprint_from_ll_ds(self.meta1, dataset1))
+            attrs['polygon_common_zone'] = poly_common_zone()
             attrs['area_intersection'] = str(get_polygon_area_in_km_squared(attrs['polygon_common_zone']))
             # TODO: add correlation_coefficient + standard_deviation + vmax_m_s + scatter_index + counted_points
             return attrs
