@@ -205,8 +205,8 @@ class GenerateColoc:
         if self._colocation_filename is not None:
             return self._colocation_filename
         else:
-            name1 = intersection.meta1.product_name
-            name2 = intersection.meta2.product_name
+            name1 = intersection.meta1.product_name.split('.')[0]
+            name2 = intersection.meta2.product_name.split('.')[0]
             return f"sat_coloc_{name1}__{name2}.nc"
 
     @property
