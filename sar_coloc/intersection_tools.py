@@ -6,7 +6,7 @@ from affine import Affine
 
 import sar_coloc
 
-from .tools import extract_name_from_meta_class
+from .tools import extract_name_from_meta_class, convert_str_to_polygon
 
 
 def extract_times_dataset(acquisition, dataset=None, start_date=None, stop_date=None):
@@ -70,7 +70,7 @@ def get_polygon_area_in_km_squared(polygon):
 
     Parameters
     ----------
-    polygon: shapely.geometry.polygon.Polygon
+    polygon: shapely.geometry.polygon.Polygon | str
         Shapely polygon (footprint for example)
 
     Returns
@@ -78,6 +78,8 @@ def get_polygon_area_in_km_squared(polygon):
     float
         Area of the polygon in square kilometers
     """
+    if isinstance(polygon, str):
+        polygon = convert_str_to_polygon(polygon)
     if isinstance(polygon, Polygon):
         # Define the projection for converting latitude/longitude to meters (EPSG:4326 -> EPSG:3857)
         proj = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
