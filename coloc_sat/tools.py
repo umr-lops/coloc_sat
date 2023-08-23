@@ -29,7 +29,7 @@ def get_acquisition_root_paths(ds_name):
         'ERA5': [  # '/dataref/ecmwf/intranet/ERA5'
             '/home/ref-ecmwf/ERA5/%Y/%m/era_5-copernicus__%Y%m%d.nc'],
         'RS2': {
-            'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1/*/%Y/%(dayOfYear)/RS2*%Y%d%m*'],
+            'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1/*/%Y/%(dayOfYear)/RS2*%Y%m%d*'],
             'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*/*' +
                    '/%Y/%(dayOfYear)/RS2_OK*/RS2_*%Y%m%d*/post_processing/nclight_L2M/rs2*owi*%Y%m%d*0003*_ll_gd.nc'],
         },
