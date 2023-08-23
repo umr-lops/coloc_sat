@@ -638,7 +638,10 @@ class ProductIntersection:
             counted_points = np.count_nonzero(~np.isnan(sum_wind_speed))
 
             # Determine informations analysis for the wind speed
-            dict_ws_analysis = {}
+            dict_ws_analysis = {
+                'counted_points': counted_points,
+                'vmax_m_s': sum_wind_speed.max()
+            }
             if counted_points > 100:
                 # Determine the bias  # (m/s)
                 # https://numpy.org/doc/stable/reference/generated/numpy.nanmean.html#numpy.nanmean
