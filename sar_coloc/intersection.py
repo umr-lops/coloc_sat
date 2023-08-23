@@ -550,9 +550,9 @@ class ProductIntersection:
             else:
                 footprint = get_footprint_from_ll_ds(meta, ds, self.start_date, self.stop_date)
             unique_time = np.unique(ds[meta.time_name])
-            ds.attrs['measurementStartDate'] = min(unique_time)
-            ds.attrs['measurementStopDate'] = max(unique_time)
-            ds.attrs['footprint'] = footprint
+            ds.attrs['measurementStartDate'] = str(min(unique_time))
+            ds.attrs['measurementStopDate'] = str(max(unique_time))
+            ds.attrs['footprint'] = str(footprint)
             return ds
 
         def only_keep_required_vars(meta, ds):
@@ -612,9 +612,9 @@ class ProductIntersection:
             attrs = {}
             start1, stop1 = dataset1.attrs['measurementStartDate1'], dataset1.attrs['measurementStopDate1']
             start2, stop2 = dataset2.attrs['measurementStartDate2'], dataset2.attrs['measurementStopDate2']
-            attrs['time_difference'] = mean_time_diff(start1, stop1, start2, stop2)
-            attrs['polygon_common_zone'] = get_footprint_from_ll_ds(self.meta1, dataset1)
-            attrs['area_intersection'] = get_polygon_area_in_km_squared(attrs['polygon_common_zone'])
+            attrs['time_difference'] = str(mean_time_diff(start1, stop1, start2, stop2))
+            attrs['polygon_common_zone'] = str(get_footprint_from_ll_ds(self.meta1, dataset1))
+            attrs['area_intersection'] = str(get_polygon_area_in_km_squared(attrs['polygon_common_zone']))
             # TODO: add correlation_coefficient + standard_deviation + vmax_m_s + scatter_index + counted_points
             return attrs
 
