@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import numpy as np
 import copy
 import xarray as xr
@@ -620,6 +623,10 @@ class ProductIntersection:
             attrs['time_difference'] = str(mean_time_diff(start1, stop1, start2, stop2))
             attrs['polygon_common_zone'] = poly_common_zone()
             attrs['area_intersection'] = str(get_polygon_area_in_km_squared(attrs['polygon_common_zone']))
+            # add tool version to attributes
+            with open(Path(__file__).resolve().parent / "config_version.json", "r") as config_file:
+                config_data = json.load(config_file)
+            attrs['version'] = config_data["version"]
             # TODO: add correlation_coefficient + standard_deviation + vmax_m_s + scatter_index + counted_points
             return attrs
 
