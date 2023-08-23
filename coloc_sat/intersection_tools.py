@@ -4,7 +4,7 @@ from itertools import product
 import math
 from affine import Affine
 
-import sar_coloc
+import coloc_sat
 
 from .tools import extract_name_from_meta_class, convert_str_to_polygon
 
@@ -16,7 +16,7 @@ def extract_times_dataset(acquisition, dataset=None, start_date=None, stop_date=
 
     Parameters
     ----------
-    acquisition: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetEra5Meta | sar_coloc.GetHy2Meta | sar_coloc.GetSmapMeta | sar_coloc.GetWindsatMeta
+    acquisition: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetEra5Meta | coloc_sat.GetHy2Meta | coloc_sat.GetSmapMeta | coloc_sat.GetWindsatMeta
         Meta object from an acquisition
     dataset: xarray.Dataset | None
         dataset on which we want to extract some values depending on times. If it is None, extraction is made on
@@ -107,7 +107,7 @@ def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=No
 
     Parameters
     ----------
-    acquisition: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetEra5Meta | sar_coloc.GetHy2Meta | sar_coloc.GetSmapMeta | sar_coloc.GetWindsatMeta
+    acquisition: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetEra5Meta | coloc_sat.GetHy2Meta | coloc_sat.GetSmapMeta | coloc_sat.GetWindsatMeta
         Meta acquisition.
     ds: xarray.Dataset
         Ds on which footprint can be extracted from longitude and latitude vars. If no one is given (value at None)

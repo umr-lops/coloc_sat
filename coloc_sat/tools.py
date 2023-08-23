@@ -650,8 +650,8 @@ def extract_name_from_meta_class(obj):
 
     Parameters
     ----------
-    obj: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetSmapMeta | sar_coloc.GetHy2Meta |
-    sar_coloc.GetEra5Meta | sar_coloc.GetWindsatMeta
+    obj: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetSmapMeta | coloc_sat.GetHy2Meta |
+    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta
         Meta object
 
     Returns
@@ -728,14 +728,14 @@ def reformat_meta(meta):
 
     Parameters
     ----------
-    meta: sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetSmapMeta | sar_coloc.GetHy2Meta |
-    sar_coloc.GetEra5Meta | sar_coloc.GetWindsatMeta
+    meta: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetSmapMeta | coloc_sat.GetHy2Meta |
+    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta
         Meta object
 
     Returns
     -------
-    sar_coloc.GetSarMeta | sar_coloc.GetSmosMeta | sar_coloc.GetSmapMeta | sar_coloc.GetHy2Meta |
-    sar_coloc.GetEra5Meta | sar_coloc.GetWindsatMeta
+    coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetSmapMeta | coloc_sat.GetHy2Meta |
+    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta
         Meta object reformatted
     """
     satellite_type = extract_name_from_meta_class(meta)
