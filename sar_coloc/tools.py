@@ -696,19 +696,27 @@ def mean_time_diff(start1, stop1, start2, stop2):
 
     Parameters
     ----------
-    start1: datetime.datetime
+    start1: datetime.datetime | str
         Start of the first range date.
-    stop1: datetime.datetime
+    stop1: datetime.datetime | str
         Stop of the first range date.
-    start2: datetime.datetime
+    start2: datetime.datetime | str
         Start of the second range date.
-    stop2: datetime.datetime
+    stop2: datetime.datetime | str
         Stop of the second range date.
     Returns
     -------
     datetime.datetime
         Mean of the time difference between 2 date ranges.
     """
+    if isinstance(start1, str):
+        start1 = np.datetime64(start1)
+    if isinstance(stop1, str):
+        stop1 = np.datetime64(stop1)
+    if isinstance(start2, str):
+        start2 = np.datetime64(start2)
+    if isinstance(stop2, str):
+        stop2 = np.datetime64(stop2)
     mean1 = date_means(start1, stop1)
     mean2 = date_means(start2, stop2)
     return abs(mean1 - mean2)
