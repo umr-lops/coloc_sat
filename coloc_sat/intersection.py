@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 
 import numpy as np
@@ -616,6 +617,48 @@ class ProductIntersection:
             fp2 = convert_str_to_polygon(dataset2.attrs['footprint_2'])
             return str(fp1.intersection(fp2))
 
+        def ws_analysis_attributes():
+            def calculate_scatter_index(dataarray1, dataarray2):
+                # calculate the scatter index with the wind values
+                # calcultate RMSE first
+                MSE = np.square(np.subtract(dataarray1, dataarray2)).mean()
+                RMSE = math.sqrt(MSE)
+
+                # calculate mean value of all observations
+                obs = xr.concat([dataarray1, dataarray2], dim="z")
+                mean_obs = np.mean(obs).values
+
+                # calculate scatter index in percentage
+                scatter_index = RMSE / mean_obs * 100
+                return scatter_index
+
+            # number of points used for calculation of bias and standard deviation
+            sum_wind_speed = dataset1["wind_speed_1"] + dataset2["wind_speed_2"]
+            # when additioning or substracting a value with a nan, it becomes a nan
+            counted_points = np.count_nonzero(~np.isnan(sum_wind_speed))
+
+            # Determine informations analysis for the wind speed
+            dict_ws_analysis = {}
+            if counted_points > 100:
+                # Determine the bias  # (m/s)
+                # https://numpy.org/doc/stable/reference/generated/numpy.nanmean.html#numpy.nanmean
+                dict_ws_analysis["Bias"] = np.nanmean(dataset1["wind_speed_1"] - dataset2["wind_speed_2"])
+                # Determine the standard deviation  # (m/s)
+                # https://numpy.org/doc/stable/reference/generated/numpy.nanstd.html#numpy.nanstd
+                dict_ws_analysis["Standard deviation"] = np.nanstd(
+                    dataset1["wind_speed_1"] - dataset2["wind_speed_2"])
+
+                # Compute the Pearson correlation coefficient between two DataArray objects along a shared dimension.
+                correlation_coefficient = xr.corr(dataset1["wind_speed_1"], dataset2["wind_speed_2"]).values
+            else:
+                dict_ws_analysis["Bias"] = 0
+                dict_ws_analysis["Standard deviation"] = 0
+                correlation_coefficient = 0
+
+            dict_ws_analysis['scatter_index'] = calculate_scatter_index(dataset1["wind_speed_1"],
+                                                                        dataset2["wind_speed_2"])
+            return dict_ws_analysis
+
         def get_common_attrs():
             attrs = {}
             start1, stop1 = dataset1.attrs['measurementStartDate_1'], dataset1.attrs['measurementStopDate_1']
@@ -634,6 +677,7 @@ class ProductIntersection:
         merged_ds.attrs |= get_common_attrs()
         merged_ds.attrs |= dataset1.attrs
         merged_ds.attrs |= dataset2.attrs
+        merged_ds.attrs |= ws_analysis_attributes()
         return merged_ds
 
     @property
