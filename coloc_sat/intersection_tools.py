@@ -1,3 +1,4 @@
+import numpy as np
 import pyproj
 from shapely.geometry import Polygon, MultiPoint, LineString, Point
 from itertools import product
@@ -168,3 +169,41 @@ def get_nearest_time_datasets(meta1, dataset1, meta2, dataset2):
             nearest_time = min(dataset2.time.data, key=lambda x: abs(x - dataset1.time.data[0]))
             dataset2 = dataset2.sel(time=nearest_time).squeeze()
     return dataset1, dataset2
+
+
+def remove_nat(meta, dataset=None):
+    """
+    Remove not a time values in the variable time from the specified dataset. If there is an orbit_segment that is not
+    used by variables after removing the NaT values, so it is removed.
+
+    Parameters
+    ----------
+    meta: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetEra5Meta | coloc_sat.GetHy2Meta | coloc_sat.GetSmapMeta | coloc_sat.GetWindsatMeta
+        Meta acquisition
+    dataset: xarray.Dataset | None
+        dataset from the acquisition on which the operation must be applied
+
+    Returns
+    -------
+    xarray.Dataset
+        Dataset without uselessness not a time values in the time variable
+
+    Notes
+    -----
+    This function can be useful for a coloc after the spatial and temporal extraction to be sure that it doesn't
+    remain values of orbit_segment.
+    """
+    if dataset is None:
+        dataset = meta.dataset
+    dataset = dataset.where(np.isfinite(dataset[meta.time_name]), drop=True)
+    if meta.has_orbited_segmentation:
+        dimension_to_check = meta.orbit_segment_name
+        # Verify if the orbit dimension is used by variables in the dataset
+        used_by_variables = []
+        for var_name in dataset.variables:
+            var = dataset[var_name]
+            if dimension_to_check in var.coords or dimension_to_check in var.dims:
+                used_by_variables.append(var_name)
+        if not used_by_variables:
+            dataset = dataset.drop_vars(meta.orbit_segment_name)
+    return dataset
