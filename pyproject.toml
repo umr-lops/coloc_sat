@@ -13,7 +13,9 @@ dependencies = [
     "pandas",
     "dask",
     "xsar",
-    "more-itertools"
+    "more-itertools",
+    "pyaml",
+    "pyproj",
 ]
 readme = "README.md"
 dynamic = ["version"]
