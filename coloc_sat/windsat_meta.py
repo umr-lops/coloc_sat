@@ -213,6 +213,7 @@ class GetWindSatMeta:
             # map the variable names in the dataset with the keys in common vars
         mapper = {
             self.wind_name: 'wind_direction',
+            'w-mf': 'wind_speed',
         }
         for var in dataset.variables:
             if var in mapper.keys():
