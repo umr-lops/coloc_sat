@@ -1,5 +1,5 @@
 import os
-from .tools import open_nc, correct_dataset, parse_date
+from .tools import open_nc, correct_dataset, parse_date, common_var_names
 
 
 class GetEra5Meta:
@@ -195,7 +195,7 @@ class GetEra5Meta:
             Wind variable name
 
         """
-        return 'v100'
+        return 'v10'
 
     @property
     def longitude_name(self):
@@ -260,6 +260,34 @@ class GetEra5Meta:
         # New longitude and latitude names are these with the resolution of 050
         self.longitude_name = longitude50
         self.latitude_name = latitude50
+
+    def rename_vars_in_coloc(self, dataset=None):
+        """
+        Rename variables from a dataset to homogenize the co-location product. If no dataset is explicit, so it is this
+        of `self.dataset` which is used.
+
+        Parameters
+        ----------
+        dataset: xarray.Dataset | None
+            Dataset on which common vars must be renamed
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset with homogene variable names
+        """
+        if dataset is None:
+            dataset = self.dataset
+            # map the variable names in the dataset with the keys in common vars
+        mapper = {
+            self.wind_name: 'wind_direction',
+            'u10': 'wind_speed',
+        }
+        for var in dataset.variables:
+            if var in mapper.keys():
+                key_in_common_vars = mapper[var]
+                dataset = dataset.rename_vars({var: common_var_names[key_in_common_vars]})
+        return dataset
 
     @property
     def unecessary_vars_in_coloc_product(self):
