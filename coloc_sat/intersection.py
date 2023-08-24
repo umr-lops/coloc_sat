@@ -10,7 +10,7 @@ import shapely
 import rasterio
 
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
-    get_polygon_area_in_km_squared, get_transform, get_common_points, get_nearest_time_datasets
+    get_polygon_area_in_km_squared, get_transform, get_common_points, get_nearest_time_datasets, remove_nat
 from .tools import mean_time_diff, reformat_meta, convert_str_to_polygon
 
 logger = logging.getLogger(__name__)
@@ -354,6 +354,10 @@ class ProductIntersection:
         meta2 = self.meta2
 
         dataset1, dataset2 = get_nearest_time_datasets(meta1, dataset1, meta2, dataset2)
+
+        # security to be sure that there is not orbit in the datasets dimensions
+        dataset1 = remove_nat(meta1, dataset1)
+        dataset2 = remove_nat(meta2, dataset2)
 
         # Set crs if not defined
         if dataset1.rio.crs is None:
