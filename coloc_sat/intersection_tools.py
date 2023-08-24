@@ -202,7 +202,7 @@ def remove_nat(meta, dataset=None):
         used_by_variables = []
         for var_name in dataset.variables:
             var = dataset[var_name]
-            if dimension_to_check in var.coords or dimension_to_check in var.dims:
+            if dimension_to_check in var.dims:
                 used_by_variables.append(var_name)
         if not used_by_variables:
             dataset = dataset.drop_vars(meta.orbit_segment_name)
