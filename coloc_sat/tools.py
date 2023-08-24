@@ -301,9 +301,9 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
         Concerned ERA5 files
     """
     files = []
-    date = start_date
+    date = start_date.astype('datetime64[ns]')
     while date < stop_date:
-        datetime_date = date.tolist()
+        datetime_date = datetime.utcfromtimestamp(date.astype(int) * 1e-9)
         closest_date, filename = resource_strftime(resource, step=step, date=datetime_date)
         if filename not in files:
             files.append(filename)
