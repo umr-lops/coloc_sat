@@ -140,6 +140,8 @@ class ProductIntersection:
                 fp = shapely.geometry.Polygon(corners)
             else:
                 fp = get_footprint_from_ll_ds(other_meta)
+            # FIXME: for the moment we only arrive to get a dataset after spatial and temporal extraction when
+            #  the co-location is with a truncated swath
             if other_meta.acquisition_type == 'truncated_swath':
                 self._datasets[model.product_name] = geographic_intersection(model, polygon=other_meta.footprint)
             self.fill_common_footprint(fp)
