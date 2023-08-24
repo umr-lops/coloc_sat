@@ -644,7 +644,7 @@ class ProductIntersection:
             # Determine informations analysis for the wind speed
             dict_ws_analysis = {
                 'counted_points': counted_points,
-                'vmax_m_s': sum_wind_speed.max()
+                'vmax_m_s': sum_wind_speed.max().item()
             }
             if counted_points > 100:
                 # Determine the bias  # (m/s)
