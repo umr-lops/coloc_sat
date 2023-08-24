@@ -4,9 +4,6 @@ from shapely.geometry import Polygon, MultiPoint, LineString, Point
 from itertools import product
 import math
 from affine import Affine
-
-import coloc_sat
-
 from .tools import extract_name_from_meta_class, convert_str_to_polygon
 
 

@@ -1,4 +1,4 @@
-from .tools import open_nc, correct_dataset, common_var_names
+from .tools import open_nc, correct_dataset
 import os
 import numpy as np
 
