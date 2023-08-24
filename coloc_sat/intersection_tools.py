@@ -195,7 +195,7 @@ def remove_nat(meta, dataset=None):
     """
     if dataset is None:
         dataset = meta.dataset
-    dataset = dataset.where(np.isfinite(dataset[meta.time_name]), drop=True)
+    dataset = dataset.where(np.isfinite(dataset[meta.time_name]), drop=True).squeeze()
     if meta.has_orbited_segmentation:
         dimension_to_check = meta.orbit_segment_name
         # Verify if the orbit dimension is used by variables in the dataset
