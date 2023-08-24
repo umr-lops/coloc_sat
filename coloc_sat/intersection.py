@@ -588,6 +588,9 @@ class ProductIntersection:
         dataset1 = self.common_zone_datasets[product_name1]
         product_name2 = self.meta2.product_name
         dataset2 = self.common_zone_datasets[product_name2]
+        # can't format datasets and create co-location product if dimensions are empty
+        if are_dimensions_empty(dataset1) or are_dimensions_empty(dataset2):
+            raise ValueError('There are not enough common points to create the co-location product or format datasets')
         # Attributes changes
         dataset1 = apply_attributes_changes(self.meta1, dataset1)
         dataset2 = apply_attributes_changes(self.meta2, dataset2)
