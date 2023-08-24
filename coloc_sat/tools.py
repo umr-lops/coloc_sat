@@ -1,6 +1,9 @@
 import os
 import glob
+from pathlib import Path
+
 import xarray as xr
+import yaml
 from shapely import wkt
 from shapely.geometry import Polygon
 import numpy as np
@@ -10,50 +13,28 @@ from xsar.raster_readers import resource_strftime
 import re
 
 
-common_var_names = {
-    'wind_speed': 'wind_speed',
-    'wind_direction': 'wind_direction_ecmwf',
-    'wind_from_direction': 'wind_from_direction',
-    'longitude': 'lon',
-    'latitude': 'lat',
-    'time': 'time',
-}
+def get_config_path():
+    # determine the config file we will use (config.yml by default, and a local config if one is present)
+    local_config_pontential_path = Path(os.path.join('~', 'coloc_sat', 'localconfig.yml')).expanduser()
+    if local_config_pontential_path.exists():
+        config_path = local_config_pontential_path
+    else:
+        config_path = Path(os.path.join(os.path.dirname(__file__), 'config.yml'))
+    return config_path
+
+
+def load_config():
+    with open(get_config_path(), 'r') as file:
+        config = yaml.safe_load(file)
+    return config
+
+
+common_var_names = load_config().get('common_var_names', {})
 
 
 def get_acquisition_root_paths(ds_name):
-    roots = {
-        'SMOS': ['/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc',
-                 '/home/ref-smoswind-public/data/v3.0/l3/data/nrt/%Y/%(dayOfYear)/*%Y%m%d*.nc'],
-        'HY2': ['/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data/%Y/%(dayOfYear)' +
-                '/*%Y%m%d*.nc'],
-        'ERA5': [  # '/dataref/ecmwf/intranet/ERA5'
-            '/home/ref-ecmwf/ERA5/%Y/%m/era_5-copernicus__%Y%m%d.nc'],
-        'RS2': {
-            'L1': ['/home/datawork-cersat-public/cache/project/sarwing/data/RS2/L1/*/%Y/%(dayOfYear)/RS2*%Y%m%d*'],
-            'L2': ['/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/RS2/*/*' +
-                   '/%Y/%(dayOfYear)/RS2_OK*/RS2_*%Y%m%d*/post_processing/nclight_L2M/rs2*owi*%Y%m%d*0003*_ll_gd.nc'],
-        },
-        'S1': {
-            'L1': ['/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1/*/*' +
-                   '/%Y/%(dayOfYear)/S1*%Y%m%d*SAFE'],
-            'L2': ['/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*/*/*/*/%Y/%(dayOfYear)' +
-                   '/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003*_ll_gd.nc',
-                   '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/' +
-                   'sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*0003' +
-                   '*_ll_gd.nc'],
-        },
-        'RCM': {
-            'L1': ['/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*/%Y/%(dayOfYear)/RCM*%Y%m%d*'],
-            'L2': [],
-        },
-        'WS': ['/home/datawork-cersat-public/project/mpc-sentinel1/analysis/s1_data_analysis/project_rmarquar/' +
-               'wsat/data_compressed/dm/%Y/%(dayOfYear)/wsat_%Y%m%d*.gz'],
-        'SMAP': ['/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily/%Y/%(dayOfYear)' +
-                 '/RSS_smap_*.nc',
-                 '/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily_nrt/%Y' +
-                 '/%(dayOfYear)/RSS_smap_*.nc']
-    }
-    return roots[ds_name]
+    paths_dict = load_config().get('paths', {})
+    return paths_dict[ds_name]
 
 
 def call_meta_class(file, product_generation=False):
