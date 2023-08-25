@@ -36,3 +36,6 @@ skip_gitignore = true
 float_to_top = true
 default_section = "THIRDPARTY"
 known_first_party = "coloc_sat"
+
+[project.scripts]
+Coloc_between_product_and_mission = "coloc_sat.scripts.coloc_between_product_and_mission:main"
