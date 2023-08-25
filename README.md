@@ -113,7 +113,7 @@ generator = coloc_sat.GenerateColoc(product1_id=product1, ds_name=ds_namedelta_t
 generator.save_results()
 ```
 
-It is also possible to use this co-location generator with the console. Here are examples.
+> NOTE : It is also possible to use this co-location generator with the console. Here are examples.
 
 a) This first example shows how to generate a coloc between 2 specified products:
 
