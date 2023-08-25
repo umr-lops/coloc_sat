@@ -112,13 +112,29 @@ generator = coloc_sat.GenerateColoc(product1_id=product1, ds_name=ds_namedelta_t
 # save the results (listing and / or co-location products)
 generator.save_results()
 ```
-        
 
-* Free software: MIT license
-* Documentation: https://coloc-sat.readthedocs.io.
+It is also possible to use this co-location generator with the console. Here are examples.
+
+a) This first example shows how to generate a coloc between 2 specified products:
+
+```bash
+Coloc_2_products --product1_id /path/to/rs2/L2/rs2--owi-cm-20141004t210600-20141004t210715-00003-BDBE0_ll_gd.nc --product2_id path/to/s1/L2/s1a-iw-owi-cm-20141004t211657-20141004t211829-000003-002FF5_ll_gd.nc --listing --product_generation
+```
+
+
+b) This second example shows how to generate all possible coloc between a product and a mission (all products from this mission):
+        
+```bash
+Coloc_between_product_and_mission --product1_id /path/to/rs2/L2/rs2--owi-cm-20141004t210600-20141004t210715-00003-BDBE0_ll_gd.nc --mission_name S1 --listing --product_generation
+```
 
 
 ## Acknowledgements
 Special thanks to REMSS for their Windsat reader.
+
+---
+
+* Free software: MIT license
+* Documentation: https://coloc-sat.readthedocs.io.
 
 
