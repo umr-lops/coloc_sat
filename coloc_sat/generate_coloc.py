@@ -320,6 +320,7 @@ class GenerateColoc:
                 if not os.path.exists(self.destination_folder):
                     os.makedirs(self.destination_folder)
                 line = f"{self.product1.product_path}:{colocated_file}\n"
+                reversed_line = f"{colocated_file}:{self.product1.product_path}\n"
                 # only write the 2 co-located product if the co-location doesn't exist in the listing file
                 if os.path.exists(listing_path):
                     with open(listing_path, 'r') as listing_file:
@@ -327,7 +328,7 @@ class GenerateColoc:
                 else:
                     # if the listing file doesn't exist, so there are no existing lines
                     existing_lines = []
-                if line not in existing_lines:
+                if (line not in existing_lines) and (reversed_line not in existing_lines):
                     with open(listing_path, 'a') as listing_file:
                         listing_file.write(line)
                     print(f"A co-located product have been added in the listing file " +
