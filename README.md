@@ -22,7 +22,7 @@ Make sure you have Python 3.9 or higher installed.
 ### Using pip
 
 ```bash
-pip install coloc_sat
+pip install coloc-sat
 ```
 
 ### Using conda
