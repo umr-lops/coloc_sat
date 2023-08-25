@@ -59,7 +59,7 @@ class GenerateColoc:
             Default value is None.
     """
 
-    def __init__(self, product1_id, destination_folder, delta_time=60, minimal_area=1600, listing=False,
+    def __init__(self, product1_id, destination_folder='/tmp', delta_time=60, minimal_area=1600, listing=False,
                  product_generation=True, **kwargs):
         # Define descriptive attributes
         self.level = kwargs.get('level', None)
@@ -100,10 +100,10 @@ class GenerateColoc:
         if isinstance(self._minimal_area, int):
             return self._minimal_area
         elif isinstance(self._minimal_area, str):
-            if self._minimal_area.endswith('m2'):
-                return int(self._minimal_area.replace('m2', '')) * 1e6
-            elif self._minimal_area.endswith('km2'):
+            if self._minimal_area.endswith('km2'):
                 return int(self._minimal_area.replace('km2', ''))
+            elif self._minimal_area.endswith('m2'):
+                return int(self._minimal_area.replace('m2', '')) * 1e6
             else:
                 raise ValueError('minimal_area expressed as a string in argument must end by km2 or m2')
         else:
@@ -156,18 +156,14 @@ class GenerateColoc:
         """
         meta1 = intersection.meta1
         meta2 = intersection.meta2
+        generation_bool = self._product_generation
         if isinstance(meta1, GetSarMeta):
             if meta1.is_safe:
-                return False
-            else:
-                return self._product_generation
+                generation_bool = False
         if isinstance(meta2, GetSarMeta):
             if meta2.is_safe:
-                return False
-            else:
-                return self._product_generation
-        else:
-            return self._product_generation
+                generation_bool = False
+        return generation_bool
 
     def listing_filename(self, intersection):
         """
@@ -319,17 +315,32 @@ class GenerateColoc:
         for colocated_file in self.colocated_files:
             intersection = self.intersections[colocated_file]
             if self.listing:
+                listing_path = os.path.join(self.destination_folder, self.listing_filename(intersection))
+                # Create the destination directory if it doesn't exist
+                if not os.path.exists(self.destination_folder):
+                    os.makedirs(self.destination_folder)
                 line = f"{self.product1.product_path}:{colocated_file}\n"
                 # only write the 2 co-located product if the co-location doesn't exist in the listing file
-                if os.path.exists(self.listing_filename(intersection)):
-                    with open(self.listing_filename(intersection), 'r') as listing_file:
+                if os.path.exists(listing_path):
+                    with open(listing_path, 'r') as listing_file:
                         existing_lines = listing_file.readlines()
                 else:
                     # if the listing file doesn't exist, so there are no existing lines
                     existing_lines = []
                 if line not in existing_lines:
-                    with open(self.listing_filename(intersection), 'a') as listing_file:
+                    with open(listing_path, 'a') as listing_file:
                         listing_file.write(line)
+                    print(f"A co-located product have been added in the listing file " +
+                          f"{listing_path}")
+                else:
+                    print("A co-located product already exists in the listing file " +
+                          f"{listing_path}")
+
             if self.product_generation(intersection):
+                colocation_product_path = os.path.join(self.destination_folder, self.colocation_filename(intersection))
+                # Create the destination directory if it doesn't exist
+                if not os.path.exists(self.destination_folder):
+                    os.makedirs(self.destination_folder)
                 coloc_ds = intersection.coloc_product_datasets
-                coloc_ds.to_netcdf(self.colocation_filename(intersection))
+                coloc_ds.to_netcdf(colocation_product_path)
+                print(f"A co-located products have been created: {colocation_product_path}")
