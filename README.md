@@ -25,6 +25,12 @@ Make sure you have Python 3.9 or higher installed.
 pip install coloc_sat
 ```
 
+### Using conda
+
+```bash
+conda install -c conda-forge coloc_sat
+```
+
 ## Usage
 
 ### Configuration
