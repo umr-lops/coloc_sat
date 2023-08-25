@@ -5,21 +5,15 @@ from coloc_sat.generate_coloc import GenerateColoc
 
 def main():
     print(f"The script is executed from {__file__}")
-    parser = argparse.ArgumentParser(description="Generate co-locations between a specified product and a mission.")
+    parser = argparse.ArgumentParser(description="Generate co-locations between two products.")
 
     parser.add_argument("--product1_id", type=str, help="Path of the first product.")
+    parser.add_argument("--product2_id", type=str, help="Path of the second product")
     parser.add_argument("--destination_folder", default='/tmp', nargs='?', type=str, help="Folder path for the output.")
     parser.add_argument("--delta_time", default=30, nargs='?', type=int,
                         help="Maximum time in minutes between two product acquisitions.")
     parser.add_argument("--minimal_area", default='1600km2', nargs='?', type=str,
                         help="Minimal intersection area in square kilometers.")
-    parser.add_argument("--mission_name", nargs='?', type=str,
-                        choices=['S1', 'RS2', 'RCM', 'HY2', 'ERA5', 'WS', 'SMOS', 'SMAP'],
-                        help="Name of the dataset to be compared.")
-    parser.add_argument("--input_ds", type=str, nargs='?',
-                        help="Subset of mission products to compare with. It is a txt file that contains these paths.")
-    parser.add_argument("--level", nargs='?', type=int, choices=[1, 2],
-                        help="Product level (SAR missions only).")
     parser.add_argument("--listing", default=True, action="store_true",
                         help="Create a listing of co-located files.")
     parser.add_argument("--no-listing", dest="listing", action="store_false", help="Do not create a listing.")
@@ -35,12 +29,8 @@ def main():
     args = parser.parse_args()
 
     # Check for missing required arguments
-    if not args.product1_id or not args.mission_name:
-        parser.error("product1_id and mission_name are required arguments.")
-
-    # rename mission_name by ds_name in the args because it is the argument used in GenerateColoc
-    args.ds_name = args.mission_name
-    del args.mission_name
+    if not args.product1_id or not args.product2_id:
+        parser.error("product1_id and product2_id are required arguments.")
 
     # Information for the user about listing / co-location product creation
     if args.listing is True:
