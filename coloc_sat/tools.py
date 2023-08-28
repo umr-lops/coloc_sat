@@ -608,7 +608,7 @@ def convert_mingmt(meta_acquisition):
 
     Parameters
     ----------
-    meta_acquisition: GetSmapMeta | GetSmosMeta | GetWindSatMeta
+    meta_acquisition: GetSmapMeta | GetWindSatMeta
         Metadata class of the acquisition that must have it minute variable corrected
 
     Returns
