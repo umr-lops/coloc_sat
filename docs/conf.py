@@ -120,7 +120,7 @@ html_theme = "sphinx_book_theme"
 html_static_path = ['_static']
 
 html_theme_options = {
-    'navigation_depth': 4,
+    'navigation_depth': 6,
     'collapse_navigation': False
 }
 
