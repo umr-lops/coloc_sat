@@ -24,7 +24,7 @@ Last documentation build: |today|
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    README
@@ -32,6 +32,7 @@ Last documentation build: |today|
    usage
    program_functionality_documentation
    development
+   improvements
    authors
    contributing
 
