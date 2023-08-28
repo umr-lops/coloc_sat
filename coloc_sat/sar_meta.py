@@ -354,6 +354,19 @@ class GetSarMeta:
             return self._time_name
 
     @property
+    def wind_name(self):
+        """
+        Name of an important wind variable in the dataset
+
+        Returns
+        -------
+        str
+            Wind variable name
+
+        """
+        return 'wind_speed'
+
+    @property
     def orbit_segment_name(self):
         """
         Gives the name of the variable for orbit segmentation in dataset (Ascending / Descending). If value is None,
