@@ -38,8 +38,8 @@ and "help wanted" is open to whoever wants to implement it.
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
 
-sar_coloc could always use more documentation, whether as part of the
-official sar_coloc docs, in docstrings, or even on the web in blog posts,
+coloc_sat could always use more documentation, whether as part of the
+official coloc_sat docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
 Submit Feedback
@@ -67,7 +67,7 @@ Ready to contribute? Here's how to set up `coloc_sat` for local development.
 3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
     $ mkvirtualenv coloc_sat
-    $ cd sar_coloc/
+    $ cd coloc_sat/
     $ python setup.py develop
 
 4. Create a branch for local development::
@@ -112,7 +112,7 @@ Tips
 To run a subset of tests::
 
 
-    $ python -m unittest tests.test_sar_coloc
+    $ python -m unittest tests.test_coloc_sat
 
 Deploying
 ---------
