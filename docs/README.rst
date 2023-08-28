@@ -199,6 +199,27 @@ Example of product name: `'sat_coloc_s1a-ew-owi-cm-20181009t142906-20181009t1431
             Standard deviation:      0
             scatter_index:           nan
 
+Important notes
+================
+
+This library is a Work-in-progress, so that some acquisition type combinations aren't treated yet:
+
+
++-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
+|                         |   truncated_swath       |          swath          |  daily_regular_grid     |           model         |
++=========================+=========================+=========================+=========================+=========================+
+| **truncated_swath**     | listing=True,           | listing=True,           | listing=True,           | listing=True,           |
+|                         | product_generation=True | product_generation=False| product_generation=True | product_generation=True |
++-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
+| **swath**               | listing=True,           | listing=False,          | listing=False,          | listing=True,           |
+|                         | product_generation=False| product_generation=False| product_generation=False| product_generation=False|
++-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
+| **daily_regular_grid**  | listing=True,           | listing=False,          | listing=False,          | listing=True,           |
+|                         | product_generation=True | product_generation=False| product_generation=False| product_generation=False|
++-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
+| **model**               | listing=True,           | listing=True,           | listing=True,           | listing=True,           |
+|                         | product_generation=True | product_generation=False| product_generation=False| product_generation=False|
++-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
 
 Acknowledgements
 ----------------
