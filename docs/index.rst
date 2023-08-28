@@ -31,6 +31,7 @@ Last documentation build: |today|
    installation
    usage
    program_functionality_documentation
+   development
    authors
    contributing
 
