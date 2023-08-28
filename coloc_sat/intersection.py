@@ -762,16 +762,18 @@ class ProductIntersection:
     @property
     def coloc_product_datasets(self):
         """
-        Get final co-located product dataset.
-        Notes :
-            It also fills the common zone datasets in the attribute `self.common_zone_datasets` when they don't exist.
-            It also fills the resampled datasets in the attribute `self.resampled_datasets` when they don't exist.
-            It also formats the datasets (var and attribute names + add new attributes)
-            It also stores the result in `self.colocation_product`
-        Returns
-        -------
+        Get the final co-located product dataset.
+
+        Notes:
+            - This method also populates the common zone datasets in the `self.common_zone_datasets` attribute when they do not exist yet.
+            - It also populates the resampled datasets in the `self.resampled_datasets` attribute when they do not exist yet.
+            - It also formats the datasets (variable and attribute names + adds new attributes).
+            - Finally, it stores the result in `self.colocation_product`.
+
+        Returns:
+        --------
         Dict[str, xarray.Dataset]
-           Final co-located product datasets.
+            Final co-located product datasets.
         """
         if self.colocation_product is None:
             self.colocation_product = self.merge_datasets
