@@ -35,6 +35,14 @@ class ProductIntersection:
 
     @property
     def has_intersection(self):
+        """
+        Property that verifies if there is an intersection between 2 products.
+
+        Returns
+        -------
+        bool
+            True if 2 products are co-located.
+        """
         times1 = (self.meta1.start_date - self.delta_time_np, self.meta1.stop_date + self.delta_time_np)
         times2 = (self.meta2.start_date - self.delta_time_np, self.meta2.stop_date + self.delta_time_np)
         if times1[1] < times2[0] or times2[1] < times1[0]:
@@ -92,6 +100,16 @@ class ProductIntersection:
                 return False
 
     def intersection_with_model(self):
+        """
+        Method that verifies if there is an intersection between a product and a model (ERA 5 for example).
+        This method can fill attributes like `self._datasets` (with the datasets after temporal and
+        spatial intersection) and `self._common_footprint`.
+
+        Returns
+        -------
+        bool
+            True if there is an intersection (so if the products are co-located)
+        """
         def rasterize_polygon(open_acquisition, polygon):
             if open_acquisition.acquisition_type == 'model_regular_grid':
                 lon_name = open_acquisition.longitude_name
@@ -150,6 +168,16 @@ class ProductIntersection:
         return True
 
     def intersection_drg_truncated_swath(self):
+        """
+        Method that verifies if there is an intersection between a daily regular grid product and a truncated swath.
+        This method can fill attributes like `self._datasets` (with the datasets after temporal and
+        spatial intersection) and `self._common_footprint`.
+
+        Returns
+        -------
+        bool
+            True if there is an intersection (so if the products are co-located)
+        """
         def rasterize_polygon(open_acquisition, polygon):
             if open_acquisition.acquisition_type == 'daily_regular_grid':
                 lon_name = open_acquisition.longitude_name
@@ -237,6 +265,16 @@ class ProductIntersection:
             return verify_intersection(_ds)
 
     def intersection_swath_truncated_swath(self):
+        """
+        Method that verifies if there is an intersection between a truncated swath product and a non-truncated swath.
+        This method can fill attributes like `self._datasets` (with the datasets after temporal and
+        spatial intersection) and `self._common_footprint`.
+
+        Returns
+        -------
+        bool
+            True if there is an intersection (so if the products are co-located)
+        """
 
         def geographic_intersection(open_acquisition, polygon=None):
             if open_acquisition.acquisition_type == 'swath':
@@ -315,12 +353,42 @@ class ProductIntersection:
             return verify_intersection(swath, footprint=fp)
 
     def intersection_drg_non_truncated_swath(self):
+        """
+        Method that verifies if there is an intersection between a daily regular grid product and a non-truncated swath.
+        This method can fill attributes like `self._datasets` (with the datasets after temporal and
+        spatial intersection) and `self._common_footprint`.
+
+        Returns
+        -------
+        bool
+            True if there is an intersection (so if the products are co-located)
+        """
         raise NotImplementedError("This property isn't yet implemented")
 
     def intersection_drg_drg(self):
+        """
+        Method that verifies if there is an intersection between 2 daily regular grid products.
+        This method can fill attributes like `self._datasets` (with the datasets after temporal and
+        spatial intersection) and `self._common_footprint`.
+
+        Returns
+        -------
+        bool
+            True if there is an intersection (so if the products are co-located)
+        """
         raise NotImplementedError("This property isn't yet implemented")
 
     def intersection_non_truncated_swath_non_truncated_swath(self):
+        """
+        Method that verifies if there is an intersection between 2 non-truncated swath products.
+        This method can fill attributes like `self._datasets` (with the datasets after temporal and
+        spatial intersection) and `self._common_footprint`.
+
+        Returns
+        -------
+        bool
+            True if there is an intersection (so if the products are co-located)
+        """
         raise NotImplementedError("This property isn't yet implemented")
 
     @property
@@ -711,16 +779,28 @@ class ProductIntersection:
 
     @property
     def meta1(self):
+        """
+        Getter of the first metaobject.
+        """
         return self._meta1
 
     @property
     def meta2(self):
+        """
+        Getter of the second metaobject.
+        """
         return self._meta2
 
     @meta1.setter
     def meta1(self, value):
+        """
+        Setter of the first metaobject.
+        """
         self._meta1 = value
 
     @meta2.setter
     def meta2(self, value):
+        """
+        Getter of the second metaobject.
+        """
         self._meta2 = value
