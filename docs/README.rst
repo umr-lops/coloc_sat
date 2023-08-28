@@ -10,7 +10,7 @@ sources based on provided paths and common variable names. This README
 provides an installation guide and instructions for usage. This package
 also allows co-location listings. Input satellites / missions that can
 be treated by this tool are the following : WindSat / SMOS / SMAP / SAR
-(L1/L2) / ERA5 / HY2 SAR satellites are RCM, RadarSat-2 and Sentinel1.
+(L1/L2) / ERA5 / HY2. SAR satellites are RCM, RadarSat-2 and Sentinel1.
 
 Installation
 ------------
@@ -142,6 +142,63 @@ b) This second example shows how to generate all possible coloc between
 .. code:: bash
 
    Coloc_between_product_and_mission --product1_id /path/to/rs2/L2/rs2--owi-cm-20141004t210600-20141004t210715-00003-BDBE0_ll_gd.nc --mission_name S1 --listing --product_generation
+
+Example of resulting listing of co-located products
+====================================================
+
+Example of product name : `'listing_coloc_ERA5_SAR_60.txt'`
+
+Note : For RCM, RadarSat-2 and RCM, `'SAR'` is used.
+
+Content:
+
+.. code-block:: none
+
+    /path/to/era5/era_5-copernicus__20181009.nc:path/to/S1/L2/s1a-ew-owi-cm-20181009t142906-20181009t143110-000003-02A122_ll_gd.nc
+
+Example of resulting xarray co-location product
+===============================================
+
+Example of product name: `'sat_coloc_s1a-ew-owi-cm-20181009t142906-20181009t143110-000003-02A122_ll_gd__era_5-copernicus__20181009.nc'`
+
+.. code-block:: none
+
+    <xarray.Dataset>
+        Dimensions:                            (lat: 14, lon: 9)
+        Coordinates:
+          * lon                                (lon) float32 -131.0 -130.5 ... -127.0
+          * lat                                (lat) float32 13.5 14.0 ... 19.5 20.0
+            time                               datetime64[ns] ...
+            spatial_ref                        int64 ...
+        Data variables: (12/52)
+            wind_streaks_orientation_stddev_1  (lat, lon) float32 ...
+            elevation_angle_1                  (lat, lon) float32 ...
+            heading_angle_1                    (lat, lon) float32 ...
+            nesz_cross_corrected_1             (lat, lon) float32 ...
+            nrcs_co_1                          (lat, lon) float32 ...
+            mask_flag_1                        (lat, lon) float32 ...
+            ...                                 ...
+            mwd_2                              (lat, lon) float32 ...
+            tcw_2                              (lat, lon) float64 ...
+            mwp_2                              (lat, lon) float32 ...
+            tp_2                               (lat, lon) float64 ...
+            mdww_2                             (lat, lon) float32 ...
+            mpww_2                             (lat, lon) float32 ...
+        Attributes: (12/28)
+            Conventions_1:           CF-1.6
+            title_1:                 SAR ocean surface wind field
+            institution_1:           IFREMER/CLS
+            reference_1:             Mouche Alexis, Chapron Bertrand, Knaff John, Zha...
+            measurementDate_1:       2018-10-09T14:30:08Z
+            sourceProduct_1:         s1a-ew-owi-cm-20181009t142906-20181009t143110-00...
+            ...                      ...
+            footprint_2:             POLYGON ((-131 13.5, -131 20, -127 20, -127 13.5...
+            counted_points:          0
+            vmax_m_s:                nan
+            Bias:                    0
+            Standard deviation:      0
+            scatter_index:           nan
+
 
 Acknowledgements
 ----------------

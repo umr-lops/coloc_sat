@@ -19,6 +19,7 @@
 #
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('..'))
 
 import coloc_sat
@@ -33,7 +34,14 @@ import coloc_sat
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
+              "sphinx.ext.extlinks",
+              "sphinx.ext.intersphinx",
+              "IPython.sphinxext.ipython_directive",
+              "IPython.sphinxext.ipython_console_highlighting",
+              'sphinx.ext.napoleon'
               ]
+
+autodoc_mock_imports = ['coloc_sat']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -93,7 +101,6 @@ napoleon_use_param = True
 napoleon_use_rtype = True
 napoleon_type_aliases = None
 
-
 # -- Options for HTML output -------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -117,11 +124,21 @@ html_theme_options = {
     'collapse_navigation': False
 }
 
+# -- Options for the intersphinx extension -----------------------------------
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "xarray": ("https://docs.xarray.dev/en/latest/", None),
+    "rasterio": ("https://rasterio.readthedocs.io/en/latest/", None),
+    "datatree": ("https://xarray-datatree.readthedocs.io/en/latest/", None)
+}
+
 # -- Options for HTMLHelp output ---------------------------------------
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'coloc_satdoc'
-
 
 # -- Options for LaTeX output ------------------------------------------
 
@@ -152,7 +169,6 @@ latex_documents = [
      'Yann Reynaud', 'manual'),
 ]
 
-
 # -- Options for manual page output ------------------------------------
 
 # One entry per manual page. List of tuples
@@ -162,7 +178,6 @@ man_pages = [
      'coloc_sat Documentation',
      [author], 1)
 ]
-
 
 # -- Options for Texinfo output ----------------------------------------
 
@@ -177,6 +192,3 @@ texinfo_documents = [
      'One line description of project.',
      'Miscellaneous'),
 ]
-
-
-

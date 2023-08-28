@@ -9,6 +9,8 @@ Reference
 Get in touch
 ------------
 
+Last documentation build: |today|
+
 - Report bugs, suggest features or view the source code `on github`_.
 
 .. _on github: https://github.com/umr-lops/coloc_sat
@@ -28,8 +30,10 @@ Get in touch
    README
    installation
    usage
+   program_functionality_documentation
    authors
    contributing
+
 
 Indices and tables
 ==================
