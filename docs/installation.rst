@@ -8,11 +8,16 @@ Installation
 Stable release
 --------------
 
-To install coloc_sat, run this command in your terminal:
+Installing coloc_sat, can be done with conda and pip:
+
+Using pip
+~~~~~~~~~
+
+Run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install coloc_sat
+    $ pip install coloc-sat
 
 This is the preferred method to install sar_coloc, as it will always install the most recent stable release.
 
@@ -21,6 +26,15 @@ you through the process.
 
 .. _pip: https://pip.pypa.io
 .. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
+
+Using conda
+~~~~~~~~~~~
+
+Run this command in your terminal:
+
+.. code-block:: console
+
+    $ conda install -c conda-forge coloc_sat
 
 
 From sources
