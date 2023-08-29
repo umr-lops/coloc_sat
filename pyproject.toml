@@ -14,7 +14,7 @@ dependencies = [
     "dask",
     "xsar",
     "more-itertools",
-    "pyaml",
+    "pyyaml",
     "pyproj",
 ]
 readme = "README.md"
