@@ -1,4 +1,4 @@
-name: xarray-safe-s1-docs
+name: coloc_sat_doc
 channels:
   - conda-forge
 dependencies:
