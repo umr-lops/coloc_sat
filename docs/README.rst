@@ -2,7 +2,7 @@
 README
 ======
 
-|PyPI Version| |Travis CI| |Documentation Status|
+|PyPI Version| |Documentation Status|
 
 **coloc_sat** is a Python package for co-locating satellite data
 products. It allows you to co-locate data from different satellite
