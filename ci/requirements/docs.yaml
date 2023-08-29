@@ -8,6 +8,10 @@ dependencies:
   - ipython
   - myst-parser
   - aiohttp
+  - geopandas
+  - rioxarray
+  - xarray-datatree
+  - xsar
   - pip
   - pip:
       - -e ../..
