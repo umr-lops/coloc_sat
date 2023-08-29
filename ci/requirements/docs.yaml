@@ -1,0 +1,13 @@
+name: xarray-safe-s1-docs
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - sphinx>=4
+  - sphinx-book-theme
+  - ipython
+  - myst-parser
+  - aiohttp
+  - pip
+  - pip:
+      - -e ../..
