@@ -396,7 +396,7 @@ class ProductIntersection:
         """
         Resample 2 satellite datasets from `self.meta1`and `self.meta2`. If a dataset exists in `self._datasets`
         (it means that a meta dataset has been intersected temporally and spatially), so this one is chosen.
-        Notes : it uses `rasterio.reproject_match`
+        Notes : it uses `rasterio.reproject_match` with a bi-linear resampling.
 
         Returns
         -------
