@@ -8,15 +8,20 @@ Installation
 Stable release
 --------------
 
-Installing coloc_sat, can be done with conda and pip:
+Installing coloc_sat, can be done with conda, mamba and pip:
 
 Using pip
 ~~~~~~~~~
+
+`xsar` is a dependency of **coloc_sat** that depends on `GDAL`.
+To avoid conflicts during the installation of **coloc_sat**, gdal must be installed beforehand using conda.
+
 
 Run this command in your terminal:
 
 .. code-block:: console
 
+    $ conda install -c conda-forge gdal
     $ pip install coloc-sat
 
 This is the preferred method to install sar_coloc, as it will always install the most recent stable release.
@@ -35,6 +40,15 @@ Run this command in your terminal:
 .. code-block:: console
 
     $ conda install -c conda-forge coloc_sat
+
+Using mamba
+~~~~~~~~~~~
+
+Run this command in your terminal:
+
+.. code-block:: console
+
+    $ mamba install -c conda-forge coloc_sat
 
 
 From sources

@@ -20,8 +20,13 @@ Make sure you have Python 3.9 or higher installed.
 Using pip
 ~~~~~~~~~
 
+`xsar` is a dependency of **coloc_sat** that depends on `GDAL`.
+To avoid conflicts during the installation of **coloc_sat**, gdal must be installed beforehand using conda.
+
+
 .. code:: bash
 
+   conda install -c conda-forge gdal
    pip install coloc-sat
 
 Using conda
@@ -30,6 +35,15 @@ Using conda
 .. code:: bash
 
    conda install -c conda-forge coloc_sat
+
+Using mamba
+~~~~~~~~~~~
+
+Run this command in your terminal:
+
+.. code-block:: console
+
+    mamba install -c conda-forge coloc_sat
 
 Usage
 -----
