@@ -4,15 +4,15 @@ requires-python = ">= 3.9"
 license = {text = "MIT"}
 dependencies = [
     "geopandas",
+    "xarray-datatree",
+    "xsar >=2023.8",
     "numpy",
     "xarray",
     "shapely",
     "fsspec",
-    "rasterio",
     "affine",
     "pandas",
     "dask",
-    "xsar",
     "more-itertools",
     "pyyaml",
     "pyproj",
