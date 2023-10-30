@@ -40,6 +40,11 @@ conda install -c conda-forge coloc_sat
 mamba install -c conda-forge coloc_sat
 ```
 
+Additionnaly, to use RCM data, xarray-safe-rcm must be installed (not yet available on conda-forge)
+```bash
+pip install xarray-safe-rcm
+```
+
 ## Usage
 
 ### Configuration
