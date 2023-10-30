@@ -16,6 +16,9 @@ dependencies = [
     "more-itertools",
     "pyyaml",
     "pyproj",
+    "xradarsat2",
+    "xarray-safe-s1",
+    "xarray-safe-rcm"
 ]
 readme = "README.md"
 dynamic = ["version"]
