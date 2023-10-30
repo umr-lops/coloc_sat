@@ -1,6 +1,6 @@
 import os.path
 
-from .tools import call_meta_class, get_all_comparison_files, extract_name_from_meta_class
+from .tools import call_meta_class, get_all_comparison_files, extract_name_from_meta_class, set_config
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
 import numpy as np
@@ -57,10 +57,16 @@ class GenerateColoc:
         colocation_filename : str | None, optional
             Name of the co-location product that must be created. It is useless to specify one if `product_generation` is False.
             Default value is None.
+        config : str | None, optional
+            Path to configuration file to use. If not provided, the one located in ~/coloc_sat/localconfig.yaml will
+            be used if it exists, else the config.yml of this package is used.
     """
 
     def __init__(self, product1_id, destination_folder='/tmp', delta_time=60, minimal_area=1600, listing=False,
                  product_generation=True, **kwargs):
+        config_path = kwargs.get('config', None)
+        if config_path is not None:
+            set_config(config_path)
         # Define descriptive attributes
         self.level = kwargs.get('level', None)
         self.ds_name = kwargs.get('ds_name', None)
@@ -312,36 +318,39 @@ class GenerateColoc:
         `self.product_generation(intersection)` for a specific intersection. Paths where files are written is specified
         in `self.listing_filename(intersection)` and `self.product_generation(intersection)`.
         """
-        for colocated_file in self.colocated_files:
-            intersection = self.intersections[colocated_file]
-            if self.listing:
-                listing_path = os.path.join(self.destination_folder, self.listing_filename(intersection))
-                # Create the destination directory if it doesn't exist
-                if not os.path.exists(self.destination_folder):
-                    os.makedirs(self.destination_folder)
-                line = f"{self.product1.product_path}:{colocated_file}\n"
-                reversed_line = f"{colocated_file}:{self.product1.product_path}\n"
-                # only write the 2 co-located product if the co-location doesn't exist in the listing file
-                if os.path.exists(listing_path):
-                    with open(listing_path, 'r') as listing_file:
-                        existing_lines = listing_file.readlines()
-                else:
-                    # if the listing file doesn't exist, so there are no existing lines
-                    existing_lines = []
-                if (line not in existing_lines) and (reversed_line not in existing_lines):
-                    with open(listing_path, 'a') as listing_file:
-                        listing_file.write(line)
-                    print(f"A co-located product have been added in the listing file " +
-                          f"{listing_path}")
-                else:
-                    print("A co-located product already exists in the listing file " +
-                          f"{listing_path}")
+        if self.colocated_files:
+            for colocated_file in self.colocated_files:
+                intersection = self.intersections[colocated_file]
+                if self.listing:
+                    listing_path = os.path.join(self.destination_folder, self.listing_filename(intersection))
+                    # Create the destination directory if it doesn't exist
+                    if not os.path.exists(self.destination_folder):
+                        os.makedirs(self.destination_folder)
+                    line = f"{self.product1.product_path}:{colocated_file}\n"
+                    reversed_line = f"{colocated_file}:{self.product1.product_path}\n"
+                    # only write the 2 co-located product if the co-location doesn't exist in the listing file
+                    if os.path.exists(listing_path):
+                        with open(listing_path, 'r') as listing_file:
+                            existing_lines = listing_file.readlines()
+                    else:
+                        # if the listing file doesn't exist, so there are no existing lines
+                        existing_lines = []
+                    if (line not in existing_lines) and (reversed_line not in existing_lines):
+                        with open(listing_path, 'a') as listing_file:
+                            listing_file.write(line)
+                        print(f"A co-located product have been added in the listing file " +
+                              f"{listing_path}")
+                    else:
+                        print("A co-located product already exists in the listing file " +
+                              f"{listing_path}")
 
-            if self.product_generation(intersection):
-                colocation_product_path = os.path.join(self.destination_folder, self.colocation_filename(intersection))
-                # Create the destination directory if it doesn't exist
-                if not os.path.exists(self.destination_folder):
-                    os.makedirs(self.destination_folder)
-                coloc_ds = intersection.coloc_product_datasets
-                coloc_ds.to_netcdf(colocation_product_path)
-                print(f"A co-located products have been created: {colocation_product_path}")
+                if self.product_generation(intersection):
+                    colocation_product_path = os.path.join(self.destination_folder, self.colocation_filename(intersection))
+                    # Create the destination directory if it doesn't exist
+                    if not os.path.exists(self.destination_folder):
+                        os.makedirs(self.destination_folder)
+                    coloc_ds = intersection.coloc_product_datasets
+                    coloc_ds.to_netcdf(colocation_product_path)
+                    print(f"A co-located products have been created: {colocation_product_path}")
+        else:
+            print("No coloc file has been produced, probably because no coloc has been found.")
