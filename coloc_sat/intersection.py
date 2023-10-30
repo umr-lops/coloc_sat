@@ -12,6 +12,8 @@ import rasterio
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
     get_polygon_area_in_km_squared, get_transform, get_common_points, get_nearest_time_datasets, remove_nat
 from .tools import mean_time_diff, reformat_meta, convert_str_to_polygon
+from .version import __version__
+
 
 logger = logging.getLogger(__name__)
 
@@ -747,9 +749,7 @@ class ProductIntersection:
             attrs['polygon_common_zone'] = poly_common_zone()
             attrs['area_intersection'] = str(get_polygon_area_in_km_squared(attrs['polygon_common_zone']))
             # add tool version to attributes
-            with open(Path(__file__).resolve().parent / "config_version.json", "r") as config_file:
-                config_data = json.load(config_file)
-            attrs['version'] = config_data["version"]
+            attrs['coloc_sat_version'] = __version__
             return attrs
 
         merged_ds = xr.merge([dataset1, dataset2], compat='override')
