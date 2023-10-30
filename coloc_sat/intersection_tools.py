@@ -1,5 +1,6 @@
 import numpy as np
 import pyproj
+from shapely import MultiPolygon
 from shapely.geometry import Polygon, MultiPoint, LineString, Point
 from itertools import product
 import math
@@ -68,7 +69,7 @@ def get_polygon_area_in_km_squared(polygon):
 
     Parameters
     ----------
-    polygon: shapely.geometry.polygon.Polygon | str
+    polygon: shapely.geometry.polygon.Polygon | shapely.geometry.multipolygon.MultiPolygon | str
         Shapely polygon (footprint for example)
 
     Returns
@@ -78,24 +79,26 @@ def get_polygon_area_in_km_squared(polygon):
     """
     if isinstance(polygon, str):
         polygon = convert_str_to_polygon(polygon)
+
+    # Define the projection for converting latitude/longitude to meters (EPSG:4326 -> EPSG:3857)
+    proj = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
     if isinstance(polygon, Polygon):
-        # Define the projection for converting latitude/longitude to meters (EPSG:4326 -> EPSG:3857)
-        proj = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-
-        # Convert the polygon's coordinates from latitude/longitude to meters
         projected_polygon = Polygon(proj.itransform(polygon.exterior.coords))
-
-        # Calculate the area of the polygon in square meters
         area_in_square_meters = projected_polygon.area
 
-        # Convert the area from square meters to square kilometers
-        area_in_square_km = area_in_square_meters / 1e6
-
-        return area_in_square_km
+    elif isinstance(polygon, MultiPolygon):
+        area_in_square_meters = sum(Polygon(proj.itransform(p.exterior.coords)).area for p in polygon.geoms)
     elif isinstance(polygon, LineString) or isinstance(polygon, Point):
         return 0.0
+
     else:
-        raise ValueError(f"Area from type {type(polygon)} can't be computed")
+        raise ValueError(f"Area from type {type(polygon)} can't be computed. Polygon is : {polygon}")
+
+    # Convert the area from square meters to square kilometers
+    area_in_square_km = area_in_square_meters / 1e6
+
+    return area_in_square_km
 
 
 def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=None):
