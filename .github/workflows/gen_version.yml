@@ -1,0 +1,22 @@
+name: Generate version file
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  generate_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Install setuptools_scm
+      run: pip install setuptools_scm
+
+    - name: Write version to file
+      run: python -c "import setuptools_scm; print(f'__version__ = \\'{setuptools_scm.get_version()}\\'', file=open('coloc_sat/version.py', 'w'))"
+
