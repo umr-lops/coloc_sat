@@ -25,6 +25,8 @@ def main():
                         help="Name of the listing file to be created.")
     parser.add_argument("--colocation-filename", nargs='?', type=str,
                         help="Name of the co-location product to be created.")
+    parser.add_argument("--config", type=str, help="Configuration file to use instead of the "
+                                                   "default one.")
 
     args = parser.parse_args()
 
@@ -37,6 +39,8 @@ def main():
         print("A listing of the co-located products will be created. To disable, use --no-listing.")
     if args.product_generation is True:
         print("Co-location products will be created. To disable, use --no-product-generation.")
+
+    print("WARNING : product colocation has only been tested on _ll_gd SAR products.")
 
     generator = GenerateColoc(**vars(args))
     generator.save_results()
