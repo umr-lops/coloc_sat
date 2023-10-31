@@ -1,10 +1,11 @@
 import argparse
 import coloc_sat
 from coloc_sat.generate_coloc import GenerateColoc
+from coloc_sat.intersection import __version__
+import sys
 
 
 def main():
-    print(f"The script is executed from {__file__}")
     parser = argparse.ArgumentParser(description="Generate co-locations between a specified product and a mission.")
 
     parser.add_argument("--product1-id", type=str, help="Path of the first product.")
@@ -33,8 +34,15 @@ def main():
                         help="Name of the co-location product to be created.")
     parser.add_argument("--config", type=str, help="Configuration file to use instead of the "
                                                    "default one.")
+    parser.add_argument("-v", "--version", action="store_true", help="Print version")
 
     args = parser.parse_args()
+
+    if args.version:
+        print(__version__)
+        sys.exit(0)
+
+    print(f"The script is executed from {__file__}")
 
     # Check for missing required arguments
     if not args.product1_id or not args.mission_name:
