@@ -8,6 +8,7 @@ dependencies = [
     "xsar >=2023.8",
     "numpy",
     "xarray",
+    "h5netcdf",
     "shapely",
     "fsspec",
     "affine",
