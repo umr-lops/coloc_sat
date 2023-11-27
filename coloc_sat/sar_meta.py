@@ -141,8 +141,10 @@ class GetSarMeta:
             return 'RADARSAT-2'
         elif 'RCM' in self.product_name.upper():
             return 'RCM'
-        elif 'S1' in self.product_name.upper():
-            return 'SENTINEL-1'
+        elif 'S1A' in self.product_name.upper():
+            return 'SENTINEL-1 A'
+        elif 'S1B' in self.product_name.upper():
+            return 'SENTINEL-1 B'
         else:
             raise TypeError("Unrecognized satellite name from %s" % str(self.product_name))
 
