@@ -21,6 +21,8 @@ jobs:
         run: pip install setuptools_scm
       - name: Write version to file
         run: python -c "import setuptools_scm; print(f'__version__ = \\'{setuptools_scm.get_version()}\\'', file=open('coloc_sat/version.py', 'w'))"
+      - name: Update system package index
+        run: sudo apt update
       - name: Install system packages
         run: sudo apt-get install -y libgdal-dev
       - name: Setup Environment Variables
