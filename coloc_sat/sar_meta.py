@@ -140,7 +140,7 @@ class GetSarMeta:
         if 'RS2' in self.product_name.upper():
             return 'RADARSAT-2'
         elif 'RCM' in self.product_name.upper():
-            return 'RCM'
+            return "RADARSAT Constellation"
         elif 'S1A' in self.product_name.upper():
             return 'SENTINEL-1 A'
         elif 'S1B' in self.product_name.upper():

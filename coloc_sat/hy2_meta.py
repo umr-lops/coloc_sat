@@ -88,7 +88,7 @@ class GetHy2Meta:
         str
             Mission name
         """
-        return 'HY2'
+        return "Haiyang-2"
 
     @property
     def acquisition_type(self):
