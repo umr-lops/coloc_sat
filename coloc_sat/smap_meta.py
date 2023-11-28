@@ -183,7 +183,7 @@ class GetSmapMeta:
         str
             Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
         """
-        return "SMAP"
+        return "Soil Moisture Active Passive"
 
     def rename_vars_in_coloc(self, dataset=None):
         """

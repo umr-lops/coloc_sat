@@ -88,7 +88,7 @@ class GetSmosMeta:
         str
             Mission name
         """
-        return 'SMOS'
+        return "Soil Moisture and Ocean Salinity"
 
     def rename_vars_in_coloc(self, dataset=None):
         """

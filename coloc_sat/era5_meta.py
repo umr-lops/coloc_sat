@@ -182,7 +182,7 @@ class GetEra5Meta:
         str
             Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
         """
-        return "ERA5"
+        return "ECMWF Reanalysis v5"
 
     @property
     def wind_name(self):
