@@ -8,7 +8,7 @@ import xarray as xr
 import logging
 import shapely
 import rasterio
-
+import rasterio.enums
 from .intersection_tools import extract_times_dataset, are_dimensions_empty, get_footprint_from_ll_ds, \
     get_polygon_area_in_km_squared, get_transform, get_common_points, get_nearest_time_datasets, remove_nat
 from .tools import mean_time_diff, reformat_meta, convert_str_to_polygon
@@ -19,13 +19,16 @@ logger = logging.getLogger(__name__)
 
 
 class ProductIntersection:
-    def __init__(self, meta1, meta2, delta_time=60, minimal_area=1600, product_generation=True):
+    def __init__(self, meta1, meta2, delta_time=60, minimal_area=1600, resampling_method="nearest",
+                 product_generation=True):
+        resampling_mapping = {method.name: method for method in rasterio.enums.Resampling}
         # Store the meta and rename longitude/latitude by reference ones
         self._meta1 = reformat_meta(meta1)
         self._meta2 = reformat_meta(meta2)
         self.product_generation = product_generation
         self.delta_time = delta_time
         self.minimal_area = minimal_area
+        self.resampling_method = resampling_mapping[resampling_method]
         self.delta_time_np = np.timedelta64(delta_time, 'm')
         self.start_date = None
         self.stop_date = None
@@ -463,12 +466,12 @@ class ProductIntersection:
         logger.info("Reprojecting dataset with higher resolution to make it match with the lower resolution one.")
         if pixel_spacing_lon1 * pixel_spacing_lat1 <= pixel_spacing_lon2 * pixel_spacing_lat2:
             # some product don't have the same resolution, so we apply the same resolution by specifying a resampling
-            dataset1 = dataset1.rio.reproject_match(dataset2, resampling=rasterio.enums.Resampling.bilinear)
+            dataset1 = dataset1.rio.reproject_match(dataset2, resampling=self.resampling_method)
             reprojected_dataset = "dataset1"
             logger.info("dataset1 reprojected")
         else:
             # some product don't have the same resolution, so we apply the same resolution by specifying a resampling
-            dataset2 = dataset2.rio.reproject_match(dataset1, resampling=rasterio.enums.Resampling.bilinear)
+            dataset2 = dataset2.rio.reproject_match(dataset1, resampling=self.resampling_method)
             reprojected_dataset = "dataset2"
             logger.info("dataset2 reprojected.")
         logger.info("Done reprojecting dataset.")
