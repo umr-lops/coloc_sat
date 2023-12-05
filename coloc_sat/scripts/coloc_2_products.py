@@ -1,11 +1,11 @@
 import argparse
-import coloc_sat
-from coloc_sat.generate_coloc import GenerateColoc
-from coloc_sat.intersection import __version__
 import sys
+import rasterio.enums
 
 
 def main():
+    resampling_methods = [method.name for method in rasterio.enums.Resampling]
+
     parser = argparse.ArgumentParser(description="Generate co-locations between two products.")
 
     parser.add_argument("--product1-id", type=str, help="Path of the first product.")
@@ -26,8 +26,11 @@ def main():
                         help="Name of the listing file to be created.")
     parser.add_argument("--colocation-filename", nargs='?', type=str,
                         help="Name of the co-location product to be created.")
+    parser.add_argument("--resampling-method", type=str, default="nearest",
+                        choices=resampling_methods)
     parser.add_argument("--config", type=str, help="Configuration file to use instead of the "
                                                    "default one.")
+    parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("-v", "--version", action="store_true", help="Print version")
 
     args = parser.parse_args()
@@ -36,7 +39,32 @@ def main():
         print(__version__)
         sys.exit(0)
 
-    print(f"The script is executed from {__file__}")
+    if args.debug:
+        logging.basicConfig(
+            level=logging.DEBUG,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            format="%(asctime)s [%(levelname)s]: %(message)s",  # Define the log message format
+            datefmt="%Y-%m-%d %H:%M:%S",  # Define the date/time format
+        )
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        coloc_logger = logging.getLogger("coloc_sat")
+        coloc_logger.setLevel(logging.DEBUG)
+    else:
+        logging.basicConfig(
+            level=logging.INFO,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            format="%(asctime)s [%(levelname)s]: %(message)s",  # Define the log message format
+            datefmt="%Y-%m-%d %H:%M:%S",  # Define the date/time format
+        )
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
+        coloc_logger = logging.getLogger("coloc_sat")
+        coloc_logger.setLevel(logging.INFO)
+
+    import coloc_sat
+    from coloc_sat.generate_coloc import GenerateColoc
+    from coloc_sat.intersection import __version__
+
+    logger.info(f"The script is executed from {__file__}")
 
     # Check for missing required arguments
     if not args.product1_id or not args.product2_id:
@@ -44,14 +72,16 @@ def main():
 
     # Information for the user about listing / co-location product creation
     if args.listing is True:
-        print("A listing of the co-located products will be created. To disable, use --no-listing.")
+        logger.info("A listing of the co-located products will be created. To disable, use --no-listing.")
     if args.product_generation is True:
-        print("Co-location products will be created. To disable, use --no-product-generation.")
+        logger.info("Co-location products will be created. To disable, use --no-product-generation.")
 
-    print("WARNING : product colocation has only been tested on _ll_gd SAR products.")
+    logger.warning("WARNING : product colocation has only been tested on _ll_gd SAR products.")
 
     generator = GenerateColoc(**vars(args))
-    generator.save_results()
+    status = generator.save_results()
 
-    print("Coloc python program successfully ended")
+    logger.info("Coloc python program successfully ended")
+    sys.exit(status)
+
     

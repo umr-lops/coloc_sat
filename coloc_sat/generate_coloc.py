@@ -1,9 +1,12 @@
 import os.path
-
+import logging
 from .tools import call_meta_class, get_all_comparison_files, extract_name_from_meta_class, set_config
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 class GenerateColoc:
@@ -82,6 +85,7 @@ class GenerateColoc:
             self.product2 = None
         self.delta_time = delta_time
         self._minimal_area = minimal_area
+        self.resampling_method = kwargs.get('resampling_method', None)
         self.delta_time_np = np.timedelta64(delta_time, 'm')
         self.destination_folder = destination_folder
         self._listing_filename = kwargs.get('listing_filename', None)
@@ -269,6 +273,7 @@ class GenerateColoc:
                 opened_file = call_meta_class(file, product_generation=self._product_generation)
                 intersecter = ProductIntersection(self.product1, opened_file, delta_time=self.delta_time,
                                                   minimal_area=self.minimal_area,
+                                                  resampling_method=self.resampling_method,
                                                   product_generation=self._product_generation)
                 _intersections[file] = intersecter
             except FileNotFoundError:
@@ -338,10 +343,10 @@ class GenerateColoc:
                     if (line not in existing_lines) and (reversed_line not in existing_lines):
                         with open(listing_path, 'a') as listing_file:
                             listing_file.write(line)
-                        print(f"A co-located product have been added in the listing file " +
+                        logger.info(f"A co-located product have been added in the listing file " +
                               f"{listing_path}")
                     else:
-                        print("A co-located product already exists in the listing file " +
+                        logger.info("A co-located product already exists in the listing file " +
                               f"{listing_path}")
 
                 if self.product_generation(intersection):
@@ -351,6 +356,9 @@ class GenerateColoc:
                         os.makedirs(self.destination_folder)
                     coloc_ds = intersection.coloc_product_datasets
                     coloc_ds.to_netcdf(colocation_product_path)
-                    print(f"A co-located products have been created: {colocation_product_path}")
+                    logger.info(f"A co-located product have been created: {colocation_product_path}")
         else:
-            print("No coloc file has been produced, probably because no coloc has been found.")
+            logger.info("No coloc file has been produced, probably because no coloc has been found.")
+            return 1
+        return 0
+
