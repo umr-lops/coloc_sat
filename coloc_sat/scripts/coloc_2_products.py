@@ -1,7 +1,7 @@
 import argparse
 import sys
 import rasterio.enums
-
+import logging
 
 def main():
     resampling_methods = [method.name for method in rasterio.enums.Resampling]
@@ -35,10 +35,6 @@ def main():
 
     args = parser.parse_args()
 
-    if args.version:
-        print(__version__)
-        sys.exit(0)
-
     if args.debug:
         logging.basicConfig(
             level=logging.DEBUG,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -60,10 +56,12 @@ def main():
         coloc_logger = logging.getLogger("coloc_sat")
         coloc_logger.setLevel(logging.INFO)
 
+    from coloc_sat.intersection import __version__
+    if args.version:
+        print(__version__)
+        sys.exit(0)
     import coloc_sat
     from coloc_sat.generate_coloc import GenerateColoc
-    from coloc_sat.intersection import __version__
-
     logger.info(f"The script is executed from {__file__}")
 
     # Check for missing required arguments
