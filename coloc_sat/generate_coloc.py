@@ -359,6 +359,6 @@ class GenerateColoc:
                     logger.info(f"A co-located product have been created: {colocation_product_path}")
         else:
             logger.info("No coloc file has been produced, probably because no coloc has been found.")
-            return 2
+            return 20
         return 0
 
