@@ -1,6 +1,7 @@
 from .tools import open_nc, correct_dataset
 import os
 import numpy as np
+import xarray as xr
 
 
 def extract_wind_speed(smos_dataset):
@@ -8,15 +9,42 @@ def extract_wind_speed(smos_dataset):
 
 
 class GetHy2Meta:
-    def __init__(self, product_path, product_generation=False):
+    def __init__(self, product_path, product_generation=False, footprint=None):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.product_generation = product_generation
-        self._time_name = 'time'
-        self._longitude_name = 'lon'
-        self._latitude_name = 'lat'
-        self._dataset = open_nc(product_path).load()
-        self.dataset = correct_dataset(self.dataset, self.longitude_name)
+        self._time_name = "time"
+        self._longitude_name = "lon"
+        self._latitude_name = "lat"
+        if footprint is not None:
+            self._footprint = footprint
+        self._dataset = GetHy2Meta._open_nc(product_path).load()
+        self.dataset = correct_dataset(self._dataset, self.longitude_name)
+
+    @staticmethod
+    def _open_nc(product_path):
+
+        ds = xr.open_dataset(product_path, decode_cf=False)
+        # Convert all integer variables to float
+        for var in ds.data_vars:
+            if np.issubdtype(ds[var].dtype, np.integer):
+                ds[var] = ds[var].astype("float64")
+
+        ds = xr.decode_cf(ds)
+        ds["lon"].values = np.where(
+            ds["lon"].values > 180, ds["lon"].values - 360, ds["lon"].values
+        )
+
+        return ds
+
+    @property
+    def footprint(self):
+        if hasattr(self, "_footprint") and self._footprint is not None:
+            return self._footprint
+        else:
+            raise ValueError(
+                f"No footprint for GetHY2Meta (product {self.product_path})"
+            )
 
     @property
     def start_date(self):
@@ -101,7 +129,7 @@ class GetHy2Meta:
             acquisition type
 
         """
-        return 'swath'
+        return "swath"
 
     @property
     def dataset(self):
@@ -175,3 +203,47 @@ class GetHy2Meta:
     def latitude_name(self, value):
         self._latitude_name = value
 
+    @property
+    def unecessary_vars_in_coloc_product(self):
+        """
+        Get unecessary variables in co-location product
+
+        Returns
+        -------
+        list[str]
+            Unecessary variables in co-location product
+        """
+        return []
+
+    @property
+    def necessary_attrs_in_coloc_product(self):
+        """
+        Get necessary dataset attributes in co-location product
+
+        Returns
+        -------
+        list[str]
+            Necessary dataset attributes in co-location product
+        """
+        return []
+
+    def rename_attrs_in_coloc_product(self, attr):
+        """
+        Get the new name of an attribute in co-location products from an original attribute
+
+        Parameters
+        ----------
+        attr: str
+            Attribute from the satellite dataset that needs to be renames for the co-location product.
+
+        Returns
+        -------
+        str
+            New attribute's name from the satellite dataset.
+        """
+        # no attributes to rename
+        mapper = {}
+        if attr in mapper.keys():
+            return mapper[attr]
+        else:
+            return attr

@@ -220,9 +220,9 @@ This library is a Work-in-progress, so that some acquisition type combinations a
 
 
 +-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
-|                         |   truncated_swath       |          swath          |  daily_regular_grid     |           model         |
+|                         |   truncated_grid        |          swath          |  daily_regular_grid     |           model         |
 +=========================+=========================+=========================+=========================+=========================+
-| **truncated_swath**     | listing=True,           | listing=True,           | listing=True,           | listing=True,           |
+| **truncated_grid**      | listing=True,           | listing=True,           | listing=True,           | listing=True,           |
 |                         | product_generation=True | product_generation=False| product_generation=True | product_generation=True |
 +-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
 | **swath**               | listing=True,           | listing=False,          | listing=False,          | listing=True,           |

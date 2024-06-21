@@ -1,11 +1,17 @@
 import os
-from .tools import call_sar_meta, open_l2, get_l2_footprint, extract_start_stop_dates_from_sar
+from .tools import (
+    call_sar_meta,
+    open_l2,
+    get_l2_footprint,
+    extract_start_stop_dates_from_sar,
+)
 from shapely.geometry import Polygon
 import numpy as np
+import xarray as xr
 
 
 class GetSarMeta:
-    def __init__(self, product_path, product_generation=False):
+    def __init__(self, product_path, product_generation=False, footprint=None):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self._l1_info = None
@@ -14,22 +20,42 @@ class GetSarMeta:
         self._longitude_name = None
         self._latitude_name = None
         self.product_generation = product_generation
+        if footprint is not None:
+            self._footprint = footprint
         if self.is_safe:
-            self._l1_info = {'meta': call_sar_meta(self.product_path),
-                             'dataset_names': [],
-                             'submeta': {},
-                             'times': {},
-                             'footprints': {}
-                             }
+            self._l1_info = {
+                "meta": call_sar_meta(self.product_path),
+                "dataset_names": [],
+                "submeta": {},
+                "times": {},
+                "footprints": {},
+            }
             self.fill_dataset_names()
             self.fill_submeta()
             self.fill_times()
             self.fill_footprints()
         else:
-            self._time_name = 'time'
-            self._longitude_name = 'lon'
-            self._latitude_name = 'lat'
-            self._l2_info = open_l2(product_path)
+            self._time_name = "time"
+            self._longitude_name = "lon"
+            self._latitude_name = "lat"
+            self._l2_info = self.open_format_l2(product_path)
+
+    def open_format_l2(self, product_path):
+        if self.is_gridded:
+            return open_l2(product_path)
+        else:
+            ds = open_l2(product_path)
+            ds = ds.rename(
+                {"owiWindSpeed": "wind_speed", "owiLon": "lon", "owiLat": "lat"}
+            )
+            t = self.start_date
+            ds["time"] = xr.DataArray(
+                data=np.full(ds["lon"].shape, t),
+                dims=("owiAzSize", "owiRaSize"),
+                attrs={"long_name": "time", "standard_name": "time"},
+            )
+            ds = ds.set_coords(["lon", "lat"])
+            return ds
 
     def fill_submeta(self):
         """
@@ -38,12 +64,16 @@ class GetSarMeta:
         """
         if self.is_safe:
             if self.multidataset:
-                for ds_name in self._l1_info['dataset_names']:
-                    self._l1_info['submeta'][ds_name] = call_sar_meta(ds_name)
+                for ds_name in self._l1_info["dataset_names"]:
+                    self._l1_info["submeta"][ds_name] = call_sar_meta(ds_name)
             else:
-                self._l1_info['submeta'][self._l1_info['dataset_names'][0]] = self._l1_info['meta']
+                self._l1_info["submeta"][self._l1_info["dataset_names"][0]] = (
+                    self._l1_info["meta"]
+                )
         else:
-            raise self.WrongProductTypeError("fill_submeta property only can be used for level 1 product")
+            raise self.WrongProductTypeError(
+                "fill_submeta property only can be used for level 1 product"
+            )
 
     def fill_dataset_names(self):
         """
@@ -51,13 +81,16 @@ class GetSarMeta:
         sub-datasets
         """
         if self.is_safe:
-            if (self.mission_name == 'S1') and self.multidataset:
-                self._l1_info['dataset_names'] = [ds_name for ds_name in list(self._l1_info['meta']
-                                                                              .subdatasets.index)]
+            if (self.mission_name == "S1") and self.multidataset:
+                self._l1_info["dataset_names"] = [
+                    ds_name for ds_name in list(self._l1_info["meta"].subdatasets.index)
+                ]
             else:
-                self._l1_info['dataset_names'] = [self.product_path]
+                self._l1_info["dataset_names"] = [self.product_path]
         else:
-            raise self.WrongProductTypeError("fill_dataset_names property only can be used for level 1 product")
+            raise self.WrongProductTypeError(
+                "fill_dataset_names property only can be used for level 1 product"
+            )
 
     def fill_times(self):
         """
@@ -65,13 +98,16 @@ class GetSarMeta:
         of sub-datasets
         """
         if self.is_safe:
-            for ds_name in self._l1_info['dataset_names']:
+            for ds_name in self._l1_info["dataset_names"]:
                 tmp_dic = {
-                    'start_date': self._l1_info['submeta'][ds_name].start_date,
-                    'stop_date': self._l1_info['submeta'][ds_name].stop_date}
-                self._l1_info['times'][ds_name] = tmp_dic
+                    "start_date": self._l1_info["submeta"][ds_name].start_date,
+                    "stop_date": self._l1_info["submeta"][ds_name].stop_date,
+                }
+                self._l1_info["times"][ds_name] = tmp_dic
         else:
-            raise self.WrongProductTypeError("fill_times property only can be used for level 1 product")
+            raise self.WrongProductTypeError(
+                "fill_times property only can be used for level 1 product"
+            )
 
     def fill_footprints(self):
         """
@@ -79,10 +115,14 @@ class GetSarMeta:
         sub-datasets
         """
         if self.is_safe:
-            for ds_name in self._l1_info['dataset_names']:
-                self._l1_info['footprints'][ds_name] = self._l1_info['submeta'][ds_name].footprint
+            for ds_name in self._l1_info["dataset_names"]:
+                self._l1_info["footprints"][ds_name] = self._l1_info["submeta"][
+                    ds_name
+                ].footprint
         else:
-            raise self.WrongProductTypeError("fill_footprints property only can be used for level 1 product")
+            raise self.WrongProductTypeError(
+                "fill_footprints property only can be used for level 1 product"
+            )
 
     @property
     def multidataset(self):
@@ -94,8 +134,8 @@ class GetSarMeta:
         bool
             Express if it is a multi dataset
         """
-        if self.mission_name == 'S1':
-            return self._l1_info['meta'].multidataset
+        if self.mission_name == "S1":
+            return self._l1_info["meta"].multidataset
         else:
             return False
 
@@ -119,9 +159,11 @@ class GetSarMeta:
 
         """
         if self.is_safe:
-            return self._l1_info['submeta'][ds_name].dt
+            return self._l1_info["submeta"][ds_name].dt
         else:
-            raise self.WrongProductTypeError("datatree property only can be used for level 1 product")
+            raise self.WrongProductTypeError(
+                "datatree property only can be used for level 1 product"
+            )
 
     @property
     def mission_name(self):
@@ -137,16 +179,18 @@ class GetSarMeta:
         --------
         `GetSarMeta.product_name`
         """
-        if 'RS2' in self.product_name.upper():
-            return 'RADARSAT-2'
-        elif 'RCM' in self.product_name.upper():
+        if "RS2" in self.product_name.upper():
+            return "RADARSAT-2"
+        elif "RCM" in self.product_name.upper():
             return "RADARSAT Constellation"
-        elif 'S1A' in self.product_name.upper():
-            return 'SENTINEL-1 A'
-        elif 'S1B' in self.product_name.upper():
-            return 'SENTINEL-1 B'
+        elif "S1A" in self.product_name.upper():
+            return "SENTINEL-1 A"
+        elif "S1B" in self.product_name.upper():
+            return "SENTINEL-1 B"
         else:
-            raise TypeError("Unrecognized satellite name from %s" % str(self.product_name))
+            raise TypeError(
+                "Unrecognized satellite name from %s" % str(self.product_name)
+            )
 
     @property
     def unecessary_vars_in_coloc_product(self):
@@ -170,18 +214,20 @@ class GetSarMeta:
         list[str]
             Necessary dataset attributes in co-location product
         """
-        return ['Conventions',
-                'title',
-                'institution',
-                'reference',
-                'measurementDate',
-                'sourceProduct',
-                'missionName',
-                'polarization',
-                'footprint',
-                'l2ProcessingUtcTime',
-                'version',
-                'grid_mapping']
+        return [
+            "Conventions",
+            "title",
+            "institution",
+            "reference",
+            "measurementDate",
+            "sourceProduct",
+            "missionName",
+            "polarization",
+            "footprint",
+            "l2ProcessingUtcTime",
+            "version",
+            "grid_mapping",
+        ]
 
     def rename_attrs_in_coloc_product(self, attr):
         """
@@ -214,16 +260,21 @@ class GetSarMeta:
         shapely.geometry.polygon.Polygon
             Footprint Polygon
         """
+        if hasattr(self, "_footprint") and self._footprint is not None:
+            return self._footprint
+
         if self.is_safe:
             entire_poly = Polygon()
-            for ds_name in self._l1_info['dataset_names']:
+            for ds_name in self._l1_info["dataset_names"]:
                 """sub_geoloc = self._l1_info['submeta'][ds_name].geoloc  # geoloc of a subdataset
                 sub_geoloc = sub_geoloc.where((sub_geoloc.azimuthTime >= start_date) & \
                                               (sub_geoloc.azimuthTime <= stop_date), drop=True)
                 stacked_subgeo = sub_geoloc.stack({"cells": ["line", "sample"]}).dropna(dim="cells")
                 fp = MultiPoint(np.column_stack((stacked_subgeo.longitude, stacked_subgeo.latitude))).convex_hull"""
-                self._l1_info['footprints'][ds_name] = self._l1_info['submeta'][ds_name].footprint
-                fp = self._l1_info['footprints'][ds_name]
+                self._l1_info["footprints"][ds_name] = self._l1_info["submeta"][
+                    ds_name
+                ].footprint
+                fp = self._l1_info["footprints"][ds_name]
                 entire_poly = entire_poly.union(fp)
             return entire_poly
         else:
@@ -240,7 +291,10 @@ class GetSarMeta:
             Start date
         """
         if self.is_safe:
-            start_dates = [np.datetime64(value['start_date']) for value in self._l1_info['times'].values()]
+            start_dates = [
+                np.datetime64(value["start_date"])
+                for value in self._l1_info["times"].values()
+            ]
             return min(start_dates)
         else:
             # return np.datetime64(self._l2_info.attrs['firstMeasurementTime'])
@@ -257,7 +311,10 @@ class GetSarMeta:
             Stop date
         """
         if self.is_safe:
-            stop_dates = [np.datetime64(value['stop_date']) for value in self._l1_info['times'].values()]
+            stop_dates = [
+                np.datetime64(value["stop_date"])
+                for value in self._l1_info["times"].values()
+            ]
             return min(stop_dates)
         else:
             # return np.datetime64(self._l2_info.attrs['lastMeasurementTime'])
@@ -274,10 +331,22 @@ class GetSarMeta:
             True if SAR product is a level 1
 
         """
-        if self.product_name.endswith('.nc'):
+        if self.product_name.endswith(".nc"):
             return False
         else:
             return True
+
+    @property
+    def is_gridded(self):
+        """
+        Check if the product is regularly gridded
+
+        Returns
+        -------
+        bool
+            True if regularly gridded
+        """
+        return "_ll_gd" in self.product_name
 
     @property
     def acquisition_type(self):
@@ -290,7 +359,10 @@ class GetSarMeta:
             acquisition type
 
         """
-        return 'truncated_swath'
+        if self.is_gridded:
+            return "truncated_grid"
+        else:
+            return "truncated_swath"
 
     @property
     def dataset(self):
@@ -306,7 +378,9 @@ class GetSarMeta:
             L2 SAR dataset
         """
         if self.is_safe:
-            raise self.WrongProductTypeError('`dataset` property can only be used for level 1 products')
+            raise self.WrongProductTypeError(
+                "`dataset` property can only be used for level 1 products"
+            )
         else:
             return self._l2_info
 
@@ -321,7 +395,9 @@ class GetSarMeta:
             longitude name
         """
         if self.is_safe:
-            raise NotImplementedError('`longitude_name` not implemented for safe products')
+            raise NotImplementedError(
+                "`longitude_name` not implemented for safe products"
+            )
         else:
             return self._longitude_name
 
@@ -336,7 +412,9 @@ class GetSarMeta:
             latitude name
         """
         if self.is_safe:
-            raise NotImplementedError('`latitude_name` not implemented for safe products')
+            raise NotImplementedError(
+                "`latitude_name` not implemented for safe products"
+            )
         else:
             return self._latitude_name
 
@@ -351,7 +429,7 @@ class GetSarMeta:
             time name
         """
         if self.is_safe:
-            raise NotImplementedError('`time_name` not implemented for safe products')
+            raise NotImplementedError("`time_name` not implemented for safe products")
         else:
             return self._time_name
 
@@ -366,7 +444,7 @@ class GetSarMeta:
             Wind variable name
 
         """
-        return 'wind_speed'
+        return "wind_speed"
 
     @property
     def orbit_segment_name(self):
@@ -401,6 +479,7 @@ class GetSarMeta:
         Used for raising Exceptions when a function / property is called whereas it wasn't created for the specified
         type (Level 2 / Level 1)
         """
+
         pass
 
     @longitude_name.setter
@@ -414,6 +493,8 @@ class GetSarMeta:
     @dataset.setter
     def dataset(self, value):
         if self.is_safe:
-            raise self.WrongProductTypeError('`dataset` property can only be used for level 1 products')
+            raise self.WrongProductTypeError(
+                "`dataset` property can only be used for level 1 products"
+            )
         else:
             self._l2_info = value
