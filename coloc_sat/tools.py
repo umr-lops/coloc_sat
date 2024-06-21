@@ -11,6 +11,9 @@ import fsspec
 from datetime import datetime
 from xsar.raster_readers import resource_strftime
 import re
+from numba import njit, prange
+from numba.typed import Dict
+from numba.core import types
 
 param_config = None
 
@@ -20,21 +23,23 @@ def get_config_path():
         return param_config
     else:
         # determine the config file we will use (config.yml by default, and a local config if one is present)
-        local_config_pontential_path = Path(os.path.join('~', 'coloc_sat', 'localconfig.yml')).expanduser()
+        local_config_pontential_path = Path(
+            os.path.join("~", "coloc_sat", "localconfig.yml")
+        ).expanduser()
         if local_config_pontential_path.exists():
             config_path = local_config_pontential_path
         else:
-            config_path = Path(os.path.join(os.path.dirname(__file__), 'config.yml'))
+            config_path = Path(os.path.join(os.path.dirname(__file__), "config.yml"))
         return config_path
 
 
 def load_config():
-    with open(get_config_path(), 'r') as file:
+    with open(get_config_path(), "r") as file:
         config = yaml.safe_load(file)
     return config
 
 
-common_var_names = load_config().get('common_var_names', {})
+common_var_names = load_config().get("common_var_names", {})
 
 
 def set_config(config_path: str):
@@ -42,40 +47,60 @@ def set_config(config_path: str):
     global common_var_names
 
     param_config = config_path
-    common_var_names = load_config().get('common_var_names', {})
+    common_var_names = load_config().get("common_var_names", {})
 
 
 def get_acquisition_root_paths(ds_name):
-    paths_dict = load_config().get('paths', {})
+    paths_dict = load_config().get("paths", {})
     return paths_dict[ds_name]
 
 
-def call_meta_class(file, product_generation=False):
-    sar_satellites = ['RS2', 'S1A', 'S1B', 'RCM1', 'RCM2', 'RCM3']
+def call_meta_class(file, product_generation=False, footprint=None):
+    sar_satellites = ["RS2", "S1A", "S1B", "RCM1", "RCM2", "RCM3"]
     basename = os.path.basename(file).upper()
-    if basename.split('_')[0].split('-')[0] in sar_satellites:
+    if basename.split("_")[0].split("-")[0] in sar_satellites:
         from .sar_meta import GetSarMeta
-        return GetSarMeta(file, product_generation=product_generation)
-    elif basename.startswith('SM_'):
+
+        return GetSarMeta(
+            file, product_generation=product_generation, footprint=footprint
+        )
+    elif basename.startswith("SM_"):
         from .smos_meta import GetSmosMeta
-        return GetSmosMeta(file, product_generation=product_generation)
-    elif basename.startswith('WSAT_'):
+
+        return GetSmosMeta(
+            file, product_generation=product_generation, footprint=footprint
+        )
+    elif basename.startswith("WSAT_"):
         from .windsat_meta import GetWindSatMeta
-        return GetWindSatMeta(file, product_generation=product_generation)
-    elif basename.split('_')[1] == 'SMAP':
+
+        return GetWindSatMeta(
+            file, product_generation=product_generation, footprint=footprint
+        )
+    elif basename.split("_")[1] == "SMAP":
         from .smap_meta import GetSmapMeta
-        return GetSmapMeta(file, product_generation=product_generation)
-    elif basename.split('_')[3] == 'HY':
+
+        return GetSmapMeta(
+            file, product_generation=product_generation, footprint=footprint
+        )
+    elif basename.split("_")[3] == "HY":
         from .hy2_meta import GetHy2Meta
-        return GetHy2Meta(file, product_generation=product_generation)
-    elif basename.startswith('ERA_5'):
+
+        return GetHy2Meta(
+            file, product_generation=product_generation, footprint=footprint
+        )
+    elif basename.startswith("ERA_5"):
         from .era5_meta import GetEra5Meta
-        return GetEra5Meta(file, product_generation=product_generation)
+
+        return GetEra5Meta(
+            file, product_generation=product_generation, footprint=footprint
+        )
     else:
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
 
-def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', input_ds=None, level=None):
+def get_all_comparison_files(
+    start_date=None, stop_date=None, ds_name="SMOS", input_ds=None, level=None
+):
     """
     Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5)
 
@@ -124,14 +149,14 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
             New expression with date and day of the year parsed.
         """
         str_expression = datetime_obj.strftime(str_expression)
-        str_expression = str_expression.replace('%(dayOfYear)', day_of_year)
+        str_expression = str_expression.replace("%(dayOfYear)", day_of_year)
         return str_expression
 
     def research_files(expression):
         if (input_ds is not None) and isinstance(input_ds, list):
             return match_expression_in_list(expression=expression, str_list=input_ds)
         elif (input_ds is not None) and isinstance(input_ds, str):
-            with open(input_ds, 'r') as file:
+            with open(input_ds, "r") as file:
                 lines = file.readlines()
             file.close()
             files_list = [line.strip() for line in lines]
@@ -139,7 +164,7 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
         elif input_ds is None:
             return glob.glob(expression)
         else:
-            raise ValueError('Type of input_ds must be a list or None')
+            raise ValueError("Type of input_ds must be a list or None")
 
     def get_last_generation_files(files_list):
         """
@@ -173,9 +198,9 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
                 Primary and secondary sort keys (orbit, date, generation number)
             """
             basename = os.path.basename(string)
-            key1 = basename.split('_')[-5]
-            key2 = int(basename.split('_')[-4])
-            key3 = int(basename.split('_')[-2])
+            key1 = basename.split("_")[-5]
+            key2 = int(basename.split("_")[-4])
+            key3 = int(basename.split("_")[-2])
             return key1, key2, key3
 
         if len(files_list) == 0:
@@ -186,10 +211,15 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
             last_generation_file = sorted_files[0]
             for index, file in enumerate(sorted_files):
                 # prefix is the same when only the generation is different
-                prefix = '_'.join(os.path.basename(file).split('_')[:-2])
-                if prefix == '_'.join(os.path.basename(last_generation_file).split('_')[:-2]):
+                prefix = "_".join(os.path.basename(file).split("_")[:-2])
+                if prefix == "_".join(
+                    os.path.basename(last_generation_file).split("_")[:-2]
+                ):
                     # if the generation is greater, we increase the reference generation
-                    if extract_smos_sort_keys(file)[2] >= extract_smos_sort_keys(last_generation_file)[2]:
+                    if (
+                        extract_smos_sort_keys(file)[2]
+                        >= extract_smos_sort_keys(last_generation_file)[2]
+                    ):
                         last_generation_file = file
                 else:
                     final_files.append(last_generation_file)
@@ -199,35 +229,38 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
                     final_files.append(file)
             return final_files
 
-    map_levels = {
-        1: 'L1',
-        2: 'L2'
-    }
+    map_levels = {1: "L1", 2: "L2"}
 
     root_paths = get_acquisition_root_paths(ds_name)
     product_levels = []
     if level is not None:
         product_levels = [map_levels[level]]
-    elif (ds_name == 'S1') or (ds_name == 'RS2') or (ds_name == 'RCM'):
+    elif (ds_name == "S1") or (ds_name == "RS2") or (ds_name == "RCM"):
         product_levels = list(root_paths.keys())
     files = []
     schemes = date_schemes(start_date, stop_date)
-    if ds_name == 'SMOS':
+    if ds_name == "SMOS":
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, '%Y%m%d')
-                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
-                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                date = datetime.strptime(scheme, "%Y%m%d")
+                parsed_path = insert_date_and_day_of_year(
+                    str_expression=root_path,
+                    datetime_obj=date,
+                    day_of_year=schemes[scheme]["dayOfYear"],
+                )
                 files += research_files(parsed_path)
         files = get_last_generation_files(files)
-    elif ds_name == 'HY2':
+    elif ds_name == "HY2":
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, '%Y%m%d')
-                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
-                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                date = datetime.strptime(scheme, "%Y%m%d")
+                parsed_path = insert_date_and_day_of_year(
+                    str_expression=root_path,
+                    datetime_obj=date,
+                    day_of_year=schemes[scheme]["dayOfYear"],
+                )
                 files += research_files(parsed_path)
         if (start_date is not None) and (stop_date is not None):
             # remove files for which hour doesn't correspond to the selected times
@@ -235,52 +268,69 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
                 start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
                 if (stop_hy < start_date) or (start_hy > stop_date):
                     files.remove(f)
-    elif ds_name == 'S1':
+    elif ds_name == "S1":
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    date = datetime.strptime(scheme, '%Y%m%d')
-                    parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
-                                                              day_of_year=schemes[scheme]['dayOfYear'])
+                    date = datetime.strptime(scheme, "%Y%m%d")
+                    parsed_path = insert_date_and_day_of_year(
+                        str_expression=root_path,
+                        datetime_obj=date,
+                        day_of_year=schemes[scheme]["dayOfYear"],
+                    )
                     files += research_files(parsed_path)
-    elif ds_name == 'RS2':
+    elif ds_name == "RS2":
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    date = datetime.strptime(scheme, '%Y%m%d')
-                    parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
-                                                              day_of_year=schemes[scheme]['dayOfYear'])
+                    date = datetime.strptime(scheme, "%Y%m%d")
+                    parsed_path = insert_date_and_day_of_year(
+                        str_expression=root_path,
+                        datetime_obj=date,
+                        day_of_year=schemes[scheme]["dayOfYear"],
+                    )
                     files += research_files(parsed_path)
-    elif ds_name == 'RCM':
+    elif ds_name == "RCM":
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    date = datetime.strptime(scheme, '%Y%m%d')
-                    parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
-                                                              day_of_year=schemes[scheme]['dayOfYear'])
+                    date = datetime.strptime(scheme, "%Y%m%d")
+                    parsed_path = insert_date_and_day_of_year(
+                        str_expression=root_path,
+                        datetime_obj=date,
+                        day_of_year=schemes[scheme]["dayOfYear"],
+                    )
                     files += research_files(parsed_path)
-    elif ds_name == 'ERA5':
+    elif ds_name == "ERA5":
         for root_path in root_paths:
             if (start_date is not None) and (stop_date is not None):
                 files = get_nearest_era5_files(start_date, stop_date, root_path)
             else:
-                files = research_files(root_path.replace('%Y', '*').replace('%m', '*').replace('%d', '*'))
-    elif ds_name == 'WS':
+                files = research_files(
+                    root_path.replace("%Y", "*").replace("%m", "*").replace("%d", "*")
+                )
+    elif ds_name == "WS":
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, '%Y%m%d')
-                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
-                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                date = datetime.strptime(scheme, "%Y%m%d")
+                parsed_path = insert_date_and_day_of_year(
+                    str_expression=root_path,
+                    datetime_obj=date,
+                    day_of_year=schemes[scheme]["dayOfYear"],
+                )
                 files += research_files(parsed_path)
-    elif ds_name == 'SMAP':
+    elif ds_name == "SMAP":
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, '%Y%m%d')
-                parsed_path = insert_date_and_day_of_year(str_expression=root_path, datetime_obj=date,
-                                                          day_of_year=schemes[scheme]['dayOfYear'])
+                date = datetime.strptime(scheme, "%Y%m%d")
+                parsed_path = insert_date_and_day_of_year(
+                    str_expression=root_path,
+                    datetime_obj=date,
+                    day_of_year=schemes[scheme]["dayOfYear"],
+                )
                 files += research_files(parsed_path)
     if (start_date is not None) and (stop_date is not None):
-        if ds_name in ['S1', 'RS2', 'RCM']:
+        if ds_name in ["S1", "RS2", "RCM"]:
             for f in files.copy():
                 start, stop = extract_start_stop_dates_from_sar(f)
                 if (stop < start_date) or (start > stop_date):
@@ -289,7 +339,7 @@ def get_all_comparison_files(start_date=None, stop_date=None, ds_name='SMOS', in
 
 
 def match_expression_in_list(expression, str_list):
-    regex_expr = re.sub(r'\*', r'.*', expression)
+    regex_expr = re.sub(r"\*", r".*", expression)
     return [path for path in str_list if re.match(regex_expr, path)]
 
 
@@ -314,23 +364,24 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
         Concerned ERA5 files
     """
     files = []
-    date = start_date.astype('datetime64[ns]')
+    date = start_date.astype("datetime64[ns]")
     while date < stop_date:
         datetime_date = datetime.utcfromtimestamp(date.astype(int) * 1e-9)
-        closest_date, filename = resource_strftime(resource, step=step, date=datetime_date)
+        closest_date, filename = resource_strftime(
+            resource, step=step, date=datetime_date
+        )
         if filename not in files:
             files.append(filename)
-        date += np.timedelta64(step, 'm')
+        date += np.timedelta64(step, "m")
     return files
 
 
 def cross_antemeridian(dataset):
     """True if footprint cross antemeridian"""
-    return ((np.max(dataset.lon) - np.min(
-        dataset.lon)) > 180).item()
+    return ((np.max(dataset.lon) - np.min(dataset.lon)) > 180).item()
 
 
-def correct_dataset(dataset, lon_name='lon'):
+def correct_dataset(dataset, lon_name="lon"):
     """
     Get acquisition dataset depending on latitude and longitude. Apply correction if needed when it crosses antemeridian.
     Longitude values are ranging between -180 and 180 degrees.
@@ -350,8 +401,7 @@ def correct_dataset(dataset, lon_name='lon'):
 
     def cross_antemeridian(ds):
         """True if footprint cross antemeridian"""
-        return ((np.max(ds[lon_name]) - np.min(
-            ds[lon_name])) > 180).item()
+        return ((np.max(ds[lon_name]) - np.min(ds[lon_name])) > 180).item()
 
     lon = dataset[lon_name]
     if cross_antemeridian(dataset):
@@ -365,25 +415,17 @@ def correct_dataset(dataset, lon_name='lon'):
 def date_schemes(start_date, stop_date):
     schemes = {}
     if (start_date is not None) and (stop_date is not None):
-        date = np.datetime64(start_date, 's')
-        while date.astype('datetime64[D]') <= stop_date.astype('datetime64[D]'):
-            scheme = str(date.astype('datetime64[D]')).replace('-', '')
-            year = str(date.astype('datetime64[Y]'))
-            month = str(date.astype('datetime64[M]')).split('-')[1]
-            day_of_year = date.astype(datetime).strftime('%j')
-            date += np.timedelta64(1, 'D')
-            tmp_dic = {'year': year,
-                       'dayOfYear': day_of_year,
-                       'month': month}
+        date = np.datetime64(start_date, "s")
+        while date.astype("datetime64[D]") <= stop_date.astype("datetime64[D]"):
+            scheme = str(date.astype("datetime64[D]")).replace("-", "")
+            year = str(date.astype("datetime64[Y]"))
+            month = str(date.astype("datetime64[M]")).split("-")[1]
+            day_of_year = date.astype(datetime).strftime("%j")
+            date += np.timedelta64(1, "D")
+            tmp_dic = {"year": year, "dayOfYear": day_of_year, "month": month}
             schemes[scheme] = tmp_dic
     else:
-        schemes = {
-            '*': {
-                'year': '*',
-                'dayOfYear': '*',
-                'month': '*'
-            }
-        }
+        schemes = {"*": {"year": "*", "dayOfYear": "*", "month": "*"}}
     return schemes
 
 
@@ -408,11 +450,13 @@ def parse_date(date):
         parsed date
     """
     if not isinstance(date, str):
-        raise ValueError('Argument date must be a string')
+        raise ValueError("Argument date must be a string")
     if len(date) != 14:
-        raise ValueError("Date isn't at the good format, please use the format %Y%Y%Y%Y%M%M%D%D%H%H%M%M%S%S")
+        raise ValueError(
+            "Date isn't at the good format, please use the format %Y%Y%Y%Y%M%M%D%D%H%H%M%M%S%S"
+        )
     # formatted_date_string = f"{date[0:4]}-{date[4:6]}-{date[6:8]}T{date[8:10]}:{date[10:12]}:{date[12:16]}"
-    return np.datetime64(datetime.strptime(date, '%Y%m%d%H%M%S'))
+    return np.datetime64(datetime.strptime(date, "%Y%m%d%H%M%S"))
 
 
 def extract_start_stop_dates_from_sar(product_path):
@@ -430,48 +474,41 @@ def extract_start_stop_dates_from_sar(product_path):
     np.datetime64, np.datetime64
         Tuple that contains the start and the stop dates
     """
-    separators = {
-        'L1': '_',
-        'L2': '-'
-    }
+    separators = {"L1": "_", "L2": "-"}
     # All level 2 products have a start and a stop date
-    index_l2 = {
-        'start': 4,
-        'stop': 5
-    }
+    index_l2 = {"start": 4, "stop": 5}
     # All S1 level 1 have a start and a stop date
-    index_l1_sentinel = {
-        'start': -5,
-        'stop': -4
-    }
+    index_l1_sentinel = {"start": -5, "stop": -4}
     # All RCM and RS2 level 1 only have a start date, divided in a date (%Y%Y%Y%Y%M%M%D%D) and a time (%H%H%M%M%S%S)
-    index_l1_radarsat = {
-        'date': 5,
-        'time': 6
-    }
+    index_l1_radarsat = {"date": 5, "time": 6}
     basename = os.path.basename(product_path)
     upper_basename = basename.upper()
     # level 2 products
-    if basename.endswith('.nc'):
-        split_basename = upper_basename.split(separators['L2'])
-        str_start_date = split_basename[index_l2['start']].replace('T', '')
-        str_stop_date = split_basename[index_l2['stop']].replace('T', '')
+    if basename.endswith(".nc"):
+        split_basename = upper_basename.split(separators["L2"])
+        str_start_date = split_basename[index_l2["start"]].replace("T", "")
+        str_stop_date = split_basename[index_l2["stop"]].replace("T", "")
         start, stop = parse_date(str_start_date), parse_date(str_stop_date)
     # level 1 products
     else:
-        split_basename = upper_basename.split(separators['L1'])
+        split_basename = upper_basename.split(separators["L1"])
         # S1 products
-        if upper_basename.startswith('S1'):
-            str_start_date = split_basename[index_l1_sentinel['start']].replace('T', '')
-            str_stop_date = split_basename[index_l1_sentinel['stop']].replace('T', '')
+        if upper_basename.startswith("S1"):
+            str_start_date = split_basename[index_l1_sentinel["start"]].replace("T", "")
+            str_stop_date = split_basename[index_l1_sentinel["stop"]].replace("T", "")
             start, stop = parse_date(str_start_date), parse_date(str_stop_date)
-        elif upper_basename.startswith('RCM') or upper_basename.startswith('RS2'):
-            str_start_date = split_basename[index_l1_radarsat['date']] + split_basename[index_l1_radarsat['time']]
+        elif upper_basename.startswith("RCM") or upper_basename.startswith("RS2"):
+            str_start_date = (
+                split_basename[index_l1_radarsat["date"]]
+                + split_basename[index_l1_radarsat["time"]]
+            )
             start = parse_date(str_start_date)
             # we only have the start date, so stop date = start date + 5 minutes
-            stop = start + np.timedelta64(5, 'm')
+            stop = start + np.timedelta64(5, "m")
         else:
-            raise ValueError(f"Can't recognize if the product {basename} is a RCM, a S1 or a RS2")
+            raise ValueError(
+                f"Can't recognize if the product {basename} is a RCM, a S1 or a RS2"
+            )
     return start, stop
 
 
@@ -491,12 +528,15 @@ def call_sar_meta(dataset_id):
     """
     if isinstance(dataset_id, str) and "S1" in dataset_id:
         from xsar import Sentinel1Meta
+
         sar_meta = Sentinel1Meta(dataset_id)
     elif isinstance(dataset_id, str) and "RS2" in dataset_id:
         from xsar import RadarSat2Meta
+
         sar_meta = RadarSat2Meta(dataset_id)
     elif isinstance(dataset_id, str) and "RCM" in dataset_id:
         from xsar import RcmMeta
+
         sar_meta = RcmMeta(dataset_id)
     else:
         raise TypeError("Unknown dataset id type from %s" % str(dataset_id))
@@ -505,10 +545,12 @@ def call_sar_meta(dataset_id):
 
 def find_l2_nc(product_path):
     if os.path.isdir(product_path):
-        nc_product = glob.glob(os.path.join(product_path, '*owi*.nc'))
+        nc_product = glob.glob(os.path.join(product_path, "*owi*.nc"))
         if len(nc_product) > 1:
-            raise ValueError(f"Many netcdf files can be read for this product, please select an only one in the " +
-                             f"following list : {nc_product}")
+            raise ValueError(
+                f"Many netcdf files can be read for this product, please select an only one in the "
+                + f"following list : {nc_product}"
+            )
         else:
             nc_product = nc_product[0]
     else:
@@ -531,8 +573,9 @@ def open_l2(product_path):
         Level 2 SAR product
     """
     nc_product = find_l2_nc(product_path)
+
     fs = fsspec.filesystem("file")
-    return xr.open_dataset(fs.open(nc_product), engine='h5netcdf')
+    return xr.open_dataset(fs.open(nc_product), engine="h5netcdf")
 
 
 def convert_str_to_polygon(poly_str):
@@ -567,15 +610,16 @@ def get_l2_footprint(dataset):
     shapely.geometry.polygon.Polygon
         Footprint of the product as a polygon
     """
-    if 'footprint' in dataset.attrs:
-        return convert_str_to_polygon(dataset.attrs['footprint'])
+    if "footprint" in dataset.attrs:
+        return convert_str_to_polygon(dataset.attrs["footprint"])
     else:
         footprint_dict = {}
-        for ll in ['owiLon', 'owiLat']:
+        for ll in ["owiLon", "owiLat"]:
             footprint_dict[ll] = [
-                dataset[ll].isel(owiAzSize=a, owiRaSize=x).values for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
+                dataset[ll].isel(owiAzSize=a, owiRaSize=x).values
+                for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
             ]
-        corners = list(zip(footprint_dict['owiLon'], footprint_dict['owiLat']))
+        corners = list(zip(footprint_dict["owiLon"], footprint_dict["owiLat"]))
         return Polygon(corners)
 
 
@@ -612,7 +656,7 @@ def open_smos_file(product_path):
         Smos product
     """
     fs = fsspec.filesystem("file")
-    return xr.open_dataset(fs.open(product_path), engine='h5netcdf')
+    return xr.open_dataset(fs.open(product_path), engine="h5netcdf")
 
 
 def convert_mingmt(meta_acquisition):
@@ -632,9 +676,13 @@ def convert_mingmt(meta_acquisition):
     """
     ds = meta_acquisition.dataset
     input_time = ds[meta_acquisition.minute_name]
-    if (np.dtype(input_time) == np.dtype('float64')) or (np.dtype(input_time) == np.dtype(int)):
-        input_time = input_time.astype('timedelta64[m]')
-    ds[meta_acquisition.time_name] = np.array(meta_acquisition.day_date, dtype="datetime64[ns]") + input_time
+    if (np.dtype(input_time) == np.dtype("float64")) or (
+        np.dtype(input_time) == np.dtype(int)
+    ):
+        input_time = input_time.astype("timedelta64[m]")
+    ds[meta_acquisition.time_name] = (
+        np.array(meta_acquisition.day_date, dtype="datetime64[ns]") + input_time
+    )
     return ds.drop_vars([meta_acquisition.minute_name])
 
 
@@ -733,17 +781,151 @@ def reformat_meta(meta):
         Meta object reformatted
     """
     satellite_type = extract_name_from_meta_class(meta)
-    if satellite_type == 'Sar':
+    if satellite_type == "Sar":
         if meta.is_safe:
             # Safe product don't have dataset property
             return meta
     ds = meta.dataset
     # rename longitude, latitude by references name and modify concerned attributes in the metaobjects
-    if meta.longitude_name != common_var_names['longitude']:
-        ds = ds.rename({meta.longitude_name: common_var_names['longitude']})
-    if meta.latitude_name != common_var_names['latitude']:
-        ds = ds.rename({meta.latitude_name: common_var_names['latitude']})
+    if meta.longitude_name != common_var_names["longitude"]:
+        ds = ds.rename({meta.longitude_name: common_var_names["longitude"]})
+    if meta.latitude_name != common_var_names["latitude"]:
+        ds = ds.rename({meta.latitude_name: common_var_names["latitude"]})
     meta.dataset = ds
-    meta.longitude_name = common_var_names['longitude']
-    meta.latitude_name = common_var_names['latitude']
+    meta.longitude_name = common_var_names["longitude"]
+    meta.latitude_name = common_var_names["latitude"]
     return meta
+
+
+@njit
+def point_in_polygon(x, y, polygon):
+    n = len(polygon)
+    inside = False
+    px, py = polygon[0]
+    for i in range(n + 1):
+        sx, sy = polygon[i % n]
+        if y > min(py, sy):
+            if y <= max(py, sy):
+                if x <= max(px, sx):
+                    if py != sy:
+                        xinters = (y - py) * (sx - px) / (sy - py) + px
+                    if px == sx or x <= xinters:
+                        inside = not inside
+        px, py = sx, sy
+    return inside
+
+
+@njit(parallel=True)
+def filter_data_polygon(lon, lat, data_vars, polygon):
+    mask = np.zeros(lon.shape, dtype=np.bool_)
+
+    for i in prange(lon.shape[0]):
+        for j in range(lon.shape[1]):
+            mask[i, j] = point_in_polygon(lon[i, j], lat[i, j], polygon)
+
+    for var in data_vars:
+        data_vars[var] = np.where(mask, data_vars[var], np.nan)
+
+    filtered_indices = np.argwhere(mask)
+    if filtered_indices.size == 0:
+        return data_vars, None, None
+
+    # Get the minimum and maximum row and column indices
+    min_row = filtered_indices[0, 0]
+    min_col = filtered_indices[0, 1]
+    max_row = filtered_indices[0, 0]
+    max_col = filtered_indices[0, 1]
+
+    for idx in filtered_indices:
+        if idx[0] < min_row:
+            min_row = idx[0]
+        if idx[1] < min_col:
+            min_col = idx[1]
+        if idx[0] > max_row:
+            max_row = idx[0]
+        if idx[1] > max_col:
+            max_col = idx[1]
+
+    # Extract the subarrays from the original lon/lat arrays
+    lon_2d_reduced = lon[min_row : max_row + 1, min_col : max_col + 1]
+    lat_2d_reduced = lat[min_row : max_row + 1, min_col : max_col + 1]
+
+    # Extract the subarrays for each variable in data_vars
+    data_vars_reduced = {}
+    for var in data_vars:
+        data_vars_reduced[var] = data_vars[var][
+            min_row : max_row + 1, min_col : max_col + 1
+        ]
+
+    return data_vars_reduced, lon_2d_reduced, lat_2d_reduced
+
+
+@njit
+def haversine(lat1, lon1, lat2, lon2):
+    # Radius of the Earth in kilometers
+    R = 6371.0
+
+    # Convert latitude and longitude from degrees to radians
+    lat1_rad = np.radians(lat1)
+    lon1_rad = np.radians(lon1)
+    lat2_rad = np.radians(lat2)
+    lon2_rad = np.radians(lon2)
+
+    # Difference in coordinates
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    # Haversine formula
+    a = (
+        np.sin(dlat / 2) ** 2
+        + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2) ** 2
+    )
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+    # Distance in kilometers
+    distance = R * c
+    return distance
+
+
+@njit(parallel=True)
+def compute_colocated_data(
+    lon_1,
+    lat_1,
+    lon_2,
+    lat_2,
+    data_vars_1,
+    data_vars_2,
+    min_px,
+    colocated_data_1,
+    colocated_data_2,
+    main_var_name_1,
+):
+    radius_km = 12.5
+
+    for i in prange(lon_1.shape[0]):
+        for j in prange(lon_1.shape[1]):
+            filtered_indices = []
+            for m in prange(lon_2.shape[0]):
+                for n in prange(lon_2.shape[1]):
+                    dist = haversine(lat_1[i, j], lon_1[i, j], lat_2[m, n], lon_2[m, n])
+                    if dist <= radius_km:
+                        filtered_indices.append((m, n))
+
+            if len(filtered_indices) < min_px:
+                continue
+
+            ref_nan = False
+            for coloc_1_var in data_vars_1:
+                if coloc_1_var == main_var_name_1:
+                    ref_nan = np.isnan(data_vars_1[coloc_1_var][i, j])
+                colocated_data_1[coloc_1_var][i, j] = data_vars_1[coloc_1_var][i, j]
+
+            for coloc_2_var in data_vars_2:
+                if not ref_nan:
+                    filtered_data = np.array(
+                        [data_vars_2[coloc_2_var][m, n] for m, n in filtered_indices]
+                    )
+                    mean_filtered_data = np.nanmean(filtered_data)
+                    colocated_data_2[coloc_2_var][i, j] = mean_filtered_data
+
+    return colocated_data_1, colocated_data_2

@@ -19,9 +19,9 @@ Some combinations aren't yet treated by this tool. These cases should be treated
 Here is a recap of the treated and non-treated cases:
 
 +-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
-|                         |   truncated_swath       |          swath          |  daily_regular_grid     |           model         |
+|                         |   truncated_grid        |          swath          |  daily_regular_grid     |           model         |
 +=========================+=========================+=========================+=========================+=========================+
-| **truncated_swath**     | listing=True,           | listing=True,           | listing=True,           | listing=True,           |
+| **truncated_grid**      | listing=True,           | listing=True,           | listing=True,           | listing=True,           |
 |                         | product_generation=True | product_generation=False| product_generation=True | product_generation=True |
 +-------------------------+-------------------------+-------------------------+-------------------------+-------------------------+
 | **swath**               | listing=True,           | listing=False,          | listing=False,          | listing=True,           |

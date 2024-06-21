@@ -20,7 +20,7 @@ Here are the steps to add a new mission to the package:
 4. Create a meta python file with the meta class
 
     First, know which acquisition type is your mission
-    ('swath', 'truncated_swath', 'model_regular_grid', 'daily_regular_grid').
+    ('swath', 'truncated_grid', 'model_regular_grid', 'daily_regular_grid').
     Then, have an eye on another class with the same :attr:`acquisition_type`, and
     fill the same attributes.
 

@@ -7,6 +7,7 @@ dependencies = [
     "xarray-datatree",
     "xsar >=2023.8",
     "numpy",
+    "numba",
     "xarray",
     "h5netcdf",
     "shapely",
@@ -31,7 +32,7 @@ build-backend = "setuptools.build_meta"
 packages = ["coloc_sat"]
 
 [tool.setuptools_scm]
-fallback_version = "999"
+fallback_version = "0"
 write_to = "coloc_sat/version.py"
 
 [tool.isort]

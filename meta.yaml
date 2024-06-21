@@ -9,21 +9,21 @@ source:
 build:
   noarch: python
   script: {{ PYTHON }} -m pip install . --no-deps -vv
-  number: 2
+  number: 0
   entry_points:
     - Coloc_between_product_and_mission = coloc_sat.scripts.coloc_between_product_and_mission:main
     - Coloc_2_products = coloc_sat.scripts.coloc_2_products:main
 
 requirements:
   build:
-    - python >=3.6,<3.12
+    - python >=3.6,<=3.12
   host:
-    - python >=3.6,<3.12
+    - python >=3.6,<=3.12
     - pip
     - setuptools_scm
     - setuptools
   run:
-    - python >=3.6,<3.12
+    - python >=3.6,<=3.12
     - geopandas
     - xarray-datatree
     - xsar >=2023.8
@@ -40,6 +40,7 @@ requirements:
     - pyyaml
     - pyproj
     - h5netcdf
+    - numba
 
 test:
   imports:

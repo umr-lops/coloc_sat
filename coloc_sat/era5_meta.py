@@ -15,8 +15,12 @@ class GetEra5Meta:
 
         if self.product_generation:
             self._dataset = open_nc(product_path).load()
-            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name_res(0.25))
-            self.dataset = correct_dataset(self.dataset, lon_name=self.longitude_name_res(0.5))
+            self.dataset = correct_dataset(
+                self.dataset, lon_name=self.longitude_name_res(0.25)
+            )
+            self.dataset = correct_dataset(
+                self.dataset, lon_name=self.longitude_name_res(0.5)
+            )
             self.reformat_meta()
 
     @property
@@ -30,7 +34,7 @@ class GetEra5Meta:
             Start time
         """
         # first time is at 00:00:00
-        str_time = self.product_path.split('_')[-1].split('.')[0] + '000000'
+        str_time = self.product_path.split("_")[-1].split(".")[0] + "000000"
         return parse_date(str_time)
 
     @property
@@ -44,7 +48,7 @@ class GetEra5Meta:
             Stop time
         """
         # last time is at 23:00:00
-        str_time = self.product_path.split('_')[-1].split('.')[0] + '230000'
+        str_time = self.product_path.split("_")[-1].split(".")[0] + "230000"
         return parse_date(str_time)
 
     def longitude_name_res(self, resolution):
@@ -63,13 +67,17 @@ class GetEra5Meta:
         str
             longitude name
         """
-        str_resolution = str(resolution).replace('.', '')
-        str_resolution += '0' * (3 - len(str_resolution))  # Add 0 to have a str of 3 characters
+        str_resolution = str(resolution).replace(".", "")
+        str_resolution += "0" * (
+            3 - len(str_resolution)
+        )  # Add 0 to have a str of 3 characters
         name = f"longitude{str_resolution}"
         if name in self.dataset.dims:
             return name
         else:
-            raise ValueError(f"{name} wasn't found in the dataset. Please verify the resolution is correct")
+            raise ValueError(
+                f"{name} wasn't found in the dataset. Please verify the resolution is correct"
+            )
 
     def latitude_name_res(self, resolution):
         """
@@ -87,13 +95,17 @@ class GetEra5Meta:
         str
             longitude name
         """
-        str_resolution = str(resolution).replace('.', '')
-        str_resolution += '0' * (3 - len(str_resolution))  # Add 0 to have a str of 3 characters
+        str_resolution = str(resolution).replace(".", "")
+        str_resolution += "0" * (
+            3 - len(str_resolution)
+        )  # Add 0 to have a str of 3 characters
         name = f"latitude{str_resolution}"
         if name in self.dataset.dims:
             return name
         else:
-            raise ValueError(f"{name} wasn't found in the dataset. Please verify the resolution is correct")
+            raise ValueError(
+                f"{name} wasn't found in the dataset. Please verify the resolution is correct"
+            )
 
     @property
     def time_name(self):
@@ -105,7 +117,7 @@ class GetEra5Meta:
         str
             time name
         """
-        return 'time'
+        return "time"
 
     @property
     def acquisition_type(self):
@@ -118,7 +130,7 @@ class GetEra5Meta:
             acquisition type
 
         """
-        return 'model_regular_grid'
+        return "model_regular_grid"
 
     @property
     def dataset(self):
@@ -195,7 +207,7 @@ class GetEra5Meta:
             Wind variable name
 
         """
-        return 'v10'
+        return "v10"
 
     @property
     def longitude_name(self):
@@ -208,7 +220,7 @@ class GetEra5Meta:
             longitude name
         """
         if self._longitude_name is None:
-            return ''
+            return ""
         else:
             return self._longitude_name
 
@@ -223,7 +235,7 @@ class GetEra5Meta:
             longitude name
         """
         if self._latitude_name is None:
-            return ''
+            return ""
         else:
             return self._latitude_name
 
@@ -250,11 +262,16 @@ class GetEra5Meta:
         ds[longitude25] = ds[longitude50]
 
         # Adjust resolution of variables variables that depend on latitude025 and longitude025
-        variables_to_adjust = [var_name for var_name in ds.data_vars if
-                               (longitude25 in ds[var_name].dims) and (latitude25 in ds[var_name].dims)]
+        variables_to_adjust = [
+            var_name
+            for var_name in ds.data_vars
+            if (longitude25 in ds[var_name].dims) and (latitude25 in ds[var_name].dims)
+        ]
 
         for var_name in variables_to_adjust:
-            ds[var_name] = ds[var_name].interp(latitude025=ds[latitude25], longitude025=ds[longitude25])
+            ds[var_name] = ds[var_name].interp(
+                latitude025=ds[latitude25], longitude025=ds[longitude25]
+            )
         ds = ds.drop_vars([latitude25, longitude25])
         self.dataset = ds
         # New longitude and latitude names are these with the resolution of 050
@@ -280,13 +297,16 @@ class GetEra5Meta:
             dataset = self.dataset
             # map the variable names in the dataset with the keys in common vars
         mapper = {
-            self.wind_name: 'wind_direction',
-            'u10': 'wind_speed',
+            # FIXME this is wrong
+            self.wind_name: "wind_direction",
+            "u10": "wind_speed",
         }
         for var in dataset.variables:
             if var in mapper.keys():
                 key_in_common_vars = mapper[var]
-                dataset = dataset.rename_vars({var: common_var_names[key_in_common_vars]})
+                dataset = dataset.rename_vars(
+                    {var: common_var_names[key_in_common_vars]}
+                )
         return dataset
 
     @property
@@ -299,7 +319,7 @@ class GetEra5Meta:
         list[str]
             Unecessary variables in co-location product
         """
-        return [self.time_name, 'land', 'nodata', 'ice', 'cloud']
+        return [self.time_name, "land", "nodata", "ice", "cloud"]
 
     @property
     def necessary_attrs_in_coloc_product(self):

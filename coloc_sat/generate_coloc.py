@@ -1,6 +1,11 @@
 import os.path
 import logging
-from .tools import call_meta_class, get_all_comparison_files, extract_name_from_meta_class, set_config
+from .tools import (
+    call_meta_class,
+    get_all_comparison_files,
+    extract_name_from_meta_class,
+    set_config,
+)
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
 import numpy as np
@@ -11,85 +16,103 @@ logger = logging.getLogger(__name__)
 
 class GenerateColoc:
     """
-        Class that generates co-locations. It can create listings of co-located products and/or generate co-location products.
-        Some arguments of this class are expressed as keyword arguments because there are 2 use options.
-        For the first option (comparison between a product and a whole dataset), arguments are `ds_name`, `input_ds`,
-        `level`.
-        For the second option (comparison between 2 products), argument is `product2_id`.
+    Class that generates co-locations. It can create listings of co-located products and/or generate co-location products.
+    Some arguments of this class are expressed as keyword arguments because there are 2 use options.
+    For the first option (comparison between a product and a whole dataset), arguments are `ds_name`, `input_ds`,
+    `level`.
+    For the second option (comparison between 2 products), argument is `product2_id`.
 
-        Parameters
-        ----------
-        product1_id : str
-            Path of a product for which we want to create a listing of its co-located products and/or generate a co-location product.
-            If it is a SAR Level-1 product, only a listing of its co-located files will be done.
-        destination_folder: str
-            Folder path where listing and / or co-location products will be created
-        delta_time : int
-            Maximum time (in minutes) that can separate two product acquisitions.
-        minimal_area : int | str
-            Minimal intersection area restricted for a valid co-location. If it is an integer, so it is expressed in
-            square kilometers. If it is a string, so the unit can be expressed as follows: `1600km2` or `1600000000m2`.
-        listing: bool
-            True if a listing of the co-located_files must be created. Default value is False
-        product_generation: bool
-            True if a co-location product must be created. Default value is True
+    Parameters
+    ----------
+    product1_id : str
+        Path of a product for which we want to create a listing of its co-located products and/or generate a co-location product.
+        If it is a SAR Level-1 product, only a listing of its co-located files will be done.
+    destination_folder: str
+        Folder path where listing and / or co-location products will be created
+    delta_time : int
+        Maximum time (in minutes) that can separate two product acquisitions.
+    minimal_area : int | str
+        Minimal intersection area restricted for a valid co-location. If it is an integer, so it is expressed in
+        square kilometers. If it is a string, so the unit can be expressed as follows: `1600km2` or `1600000000m2`.
+    listing: bool
+        True if a listing of the co-located_files must be created. Default value is False
+    product_generation: bool
+        True if a co-location product must be created. Default value is True
 
-        Keyword Arguments
-        -----------------
-        - For the first option (comparison between a product and a whole dataset):
-            ds_name : str | None
-                Name of the dataset to be compared. Choices can be 'S1', 'RS2', 'RCM', 'HY2', 'ERA5', 'WS', 'SMOS', 'SMAP'.
-            input_ds : str | list[str] | None, optional
-                Optional. Used if it is needed to compare with a subset of products. This subset can be a subset of product paths
-                or a text file that contains the different paths. If not specified, the default value is None.
-                NOTE: The subset of products must belong to the mission specified in the `ds_name` argument.
-            level : int | None, optional
-                When `ds_name` is SAR, specify the value of the product level. If it is None, get all SAR levels.
-                It is useless to give it a value when `ds_name` is something other than a SAR ('S1', 'RS2', 'RCM').
-                Values can be 1, 2, or None (default value).
+    Keyword Arguments
+    -----------------
+    - For the first option (comparison between a product and a whole dataset):
+        ds_name : str | None
+            Name of the dataset to be compared. Choices can be 'S1', 'RS2', 'RCM', 'HY2', 'ERA5', 'WS', 'SMOS', 'SMAP'.
+        input_ds : str | list[str] | None, optional
+            Optional. Used if it is needed to compare with a subset of products. This subset can be a subset of product paths
+            or a text file that contains the different paths. If not specified, the default value is None.
+            NOTE: The subset of products must belong to the mission specified in the `ds_name` argument.
+        level : int | None, optional
+            When `ds_name` is SAR, specify the value of the product level. If it is None, get all SAR levels.
+            It is useless to give it a value when `ds_name` is something other than a SAR ('S1', 'RS2', 'RCM').
+            Values can be 1, 2, or None (default value).
 
-        - For the second option (comparison between 2 products):
-            product2_id : str | None
-                Path of the product that must be compared with `product1`.
+    - For the second option (comparison between 2 products):
+        product2_id : str | None
+            Path of the product that must be compared with `product1`.
 
-        Optional Arguments
-        ------------------
-        listing_filename : str | None, optional
-            Name of the listing file that must be created. It is useless to specify one if `listing` is False.
-            Default value is None.
-        colocation_filename : str | None, optional
-            Name of the co-location product that must be created. It is useless to specify one if `product_generation` is False.
-            Default value is None.
-        config : str | None, optional
-            Path to configuration file to use. If not provided, the one located in ~/coloc_sat/localconfig.yaml will
-            be used if it exists, else the config.yml of this package is used.
+    Optional Arguments
+    ------------------
+    listing_filename : str | None, optional
+        Name of the listing file that must be created. It is useless to specify one if `listing` is False.
+        Default value is None.
+    colocation_filename : str | None, optional
+        Name of the co-location product that must be created. It is useless to specify one if `product_generation` is False.
+        Default value is None.
+    config : str | None, optional
+        Path to configuration file to use. If not provided, the one located in ~/coloc_sat/localconfig.yaml will
+        be used if it exists, else the config.yml of this package is used.
     """
 
-    def __init__(self, product1_id, destination_folder='/tmp', delta_time=60, minimal_area=1600, listing=False,
-                 product_generation=True, **kwargs):
-        config_path = kwargs.get('config', None)
+    def __init__(
+        self,
+        product1_id,
+        destination_folder="/tmp",
+        delta_time=60,
+        minimal_area=1600,
+        listing=False,
+        product_generation=True,
+        **kwargs,
+    ):
+        config_path = kwargs.get("config", None)
         if config_path is not None:
             set_config(config_path)
         # Define descriptive attributes
-        self.level = kwargs.get('level', None)
-        self.ds_name = kwargs.get('ds_name', None)
-        self.input_ds = kwargs.get('input_ds', None)
+        self.level = kwargs.get("level", None)
+        self.ds_name = kwargs.get("ds_name", None)
+        self.input_ds = kwargs.get("input_ds", None)
         self._product_generation = product_generation
         self._listing = listing
         self.product1_id = product1_id
-        self.product1 = call_meta_class(self.product1_id, product_generation=self._product_generation)
-        self.product2_id = kwargs.get('product2_id', None)
+        self.product1 = call_meta_class(
+            self.product1_id,
+            product_generation=self._product_generation,
+            footprint=kwargs["footprint1"],
+        )
+        self.footprint1 = kwargs["footprint1"]
+        self.footprints_other = [kwargs["footprint2"]]
+        self.product2_id = kwargs.get("product2_id", None)
         if self.product2_id is not None:
-            self.product2 = call_meta_class(self.product2_id, product_generation=self._product_generation)
+            self.product2 = call_meta_class(
+                self.product2_id,
+                product_generation=self._product_generation,
+                footprint=kwargs["footprint2"],
+            )
         else:
             self.product2 = None
         self.delta_time = delta_time
         self._minimal_area = minimal_area
-        self.resampling_method = kwargs.get('resampling_method', None)
-        self.delta_time_np = np.timedelta64(delta_time, 'm')
+        self.resampling_method = kwargs.get("resampling_method", None)
+        self.delta_time_np = np.timedelta64(delta_time, "m")
         self.destination_folder = destination_folder
-        self._listing_filename = kwargs.get('listing_filename', None)
-        self._colocation_filename = kwargs.get('colocation_filename', None)
+        self._listing_filename = kwargs.get("listing_filename", None)
+        self._colocation_filename = kwargs.get("colocation_filename", None)
         # define other attributes
         self.comparison_files = self.get_comparison_files
         self.intersections = None
@@ -110,15 +133,19 @@ class GenerateColoc:
         if isinstance(self._minimal_area, int):
             return self._minimal_area
         elif isinstance(self._minimal_area, str):
-            if self._minimal_area.endswith('km2'):
-                return int(self._minimal_area.replace('km2', ''))
-            elif self._minimal_area.endswith('m2'):
-                return int(self._minimal_area.replace('m2', '')) * 1e6
+            if self._minimal_area.endswith("km2"):
+                return int(self._minimal_area.replace("km2", ""))
+            elif self._minimal_area.endswith("m2"):
+                return int(self._minimal_area.replace("m2", "")) * 1e6
             else:
-                raise ValueError('minimal_area expressed as a string in argument must end by km2 or m2')
+                raise ValueError(
+                    "minimal_area expressed as a string in argument must end by km2 or m2"
+                )
         else:
-            raise TypeError("minimal_area expressed as an argument must be a string or an integer. Please refer to " +
-                            "the documentation")
+            raise TypeError(
+                "minimal_area expressed as an argument must be a string or an integer. Please refer to "
+                + "the documentation"
+            )
 
     @property
     def compare2products(self):
@@ -133,13 +160,17 @@ class GenerateColoc:
         if (self.product2 is not None) and (self.ds_name is None):
             return True
         elif (self.product2 is None) and (self.ds_name is None):
-            raise self.UnknownOptionError("The option hasn't been recognized. Please look at the doc string in the " +
-                                          "code source of the `GenerateColoc` class. A value must be given to the +"
-                                          "argument `product2` or to `ds_name`.")
+            raise self.UnknownOptionError(
+                "The option hasn't been recognized. Please look at the doc string in the "
+                + "code source of the `GenerateColoc` class. A value must be given to the +"
+                "argument `product2` or to `ds_name`."
+            )
         elif (self.product2 is not None) and (self.ds_name is not None):
-            raise self.UnknownOptionError("The option hasn't been recognized. Please look at the doc string in the " +
-                                          "code source of the `GenerateColoc` class. A value must be given to the +"
-                                          "argument `product2` or to `ds_name`; NOT BOTH.")
+            raise self.UnknownOptionError(
+                "The option hasn't been recognized. Please look at the doc string in the "
+                + "code source of the `GenerateColoc` class. A value must be given to the +"
+                "argument `product2` or to `ds_name`; NOT BOTH."
+            )
         else:
             return False
 
@@ -213,8 +244,8 @@ class GenerateColoc:
         if self._colocation_filename is not None:
             return self._colocation_filename
         else:
-            name1 = intersection.meta1.product_name.split('.')[0]
-            name2 = intersection.meta2.product_name.split('.')[0]
+            name1 = intersection.meta1.product_name.split(".")[0]
+            name2 = intersection.meta2.product_name.split(".")[0]
             return f"sat_coloc_{name1}__{name2}.nc"
 
     @property
@@ -254,9 +285,13 @@ class GenerateColoc:
         if self.compare2products:
             return [self.product2_id]
         else:
-            all_comparison_files = get_all_comparison_files(self.product1_start_date, self.product1_stop_date,
-                                                            ds_name=self.ds_name, input_ds=self.input_ds,
-                                                            level=self.level)
+            all_comparison_files = get_all_comparison_files(
+                self.product1_start_date,
+                self.product1_stop_date,
+                ds_name=self.ds_name,
+                input_ds=self.input_ds,
+                level=self.level,
+            )
             if self.product1_id in all_comparison_files:
                 all_comparison_files.remove(self.product1_id)
             return all_comparison_files
@@ -268,13 +303,24 @@ class GenerateColoc:
         `self.comparison_files`, so `self.intersections` remains with None value.
         """
         _intersections = {}
-        for file in self.comparison_files:
+        if len(self.footprints_other) != len(self.comparison_files):
+            fp = [None for _ in self.comparison_files]
+        else:
+            fp = self.footprints_other
+        for i in range(len(self.comparison_files)):
             try:
-                opened_file = call_meta_class(file, product_generation=self._product_generation)
-                intersecter = ProductIntersection(self.product1, opened_file, delta_time=self.delta_time,
-                                                  minimal_area=self.minimal_area,
-                                                  resampling_method=self.resampling_method,
-                                                  product_generation=self._product_generation)
+                file = self.comparison_files[i]
+                opened_file = call_meta_class(
+                    file, product_generation=self._product_generation, footprint=fp[i]
+                )
+                intersecter = ProductIntersection(
+                    self.product1,
+                    opened_file,
+                    delta_time=self.delta_time,
+                    minimal_area=self.minimal_area,
+                    resampling_method=self.resampling_method,
+                    product_generation=self._product_generation,
+                )
                 _intersections[file] = intersecter
             except FileNotFoundError:
                 pass
@@ -314,6 +360,7 @@ class GenerateColoc:
         """
         Used to raise errors concerning the 2 arguments subsets given in input of the class `GenerateColoc`
         """
+
         pass
 
     def save_results(self):
@@ -327,7 +374,9 @@ class GenerateColoc:
             for colocated_file in self.colocated_files:
                 intersection = self.intersections[colocated_file]
                 if self.listing:
-                    listing_path = os.path.join(self.destination_folder, self.listing_filename(intersection))
+                    listing_path = os.path.join(
+                        self.destination_folder, self.listing_filename(intersection)
+                    )
                     # Create the destination directory if it doesn't exist
                     if not os.path.exists(self.destination_folder):
                         os.makedirs(self.destination_folder)
@@ -335,30 +384,41 @@ class GenerateColoc:
                     reversed_line = f"{colocated_file}:{self.product1.product_path}\n"
                     # only write the 2 co-located product if the co-location doesn't exist in the listing file
                     if os.path.exists(listing_path):
-                        with open(listing_path, 'r') as listing_file:
+                        with open(listing_path, "r") as listing_file:
                             existing_lines = listing_file.readlines()
                     else:
                         # if the listing file doesn't exist, so there are no existing lines
                         existing_lines = []
-                    if (line not in existing_lines) and (reversed_line not in existing_lines):
-                        with open(listing_path, 'a') as listing_file:
+                    if (line not in existing_lines) and (
+                        reversed_line not in existing_lines
+                    ):
+                        with open(listing_path, "a") as listing_file:
                             listing_file.write(line)
-                        logger.info(f"A co-located product have been added in the listing file " +
-                              f"{listing_path}")
+                        logger.info(
+                            f"A co-located product have been added in the listing file "
+                            + f"{listing_path}"
+                        )
                     else:
-                        logger.info("A co-located product already exists in the listing file " +
-                              f"{listing_path}")
+                        logger.info(
+                            "A co-located product already exists in the listing file "
+                            + f"{listing_path}"
+                        )
 
                 if self.product_generation(intersection):
-                    colocation_product_path = os.path.join(self.destination_folder, self.colocation_filename(intersection))
+                    colocation_product_path = os.path.join(
+                        self.destination_folder, self.colocation_filename(intersection)
+                    )
                     # Create the destination directory if it doesn't exist
                     if not os.path.exists(self.destination_folder):
                         os.makedirs(self.destination_folder)
                     coloc_ds = intersection.coloc_product_datasets
                     coloc_ds.to_netcdf(colocation_product_path)
-                    logger.info(f"A co-located product have been created: {colocation_product_path}")
+                    logger.info(
+                        f"A co-located product have been created: {colocation_product_path}"
+                    )
         else:
-            logger.info("No coloc file has been produced, probably because no coloc has been found.")
+            logger.info(
+                "No coloc file has been produced, probably because no coloc has been found."
+            )
             return 20
         return 0
-
