@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 import os
 import glob
 from pathlib import Path
@@ -8,7 +12,7 @@ from shapely import wkt
 from shapely.geometry import Polygon
 import numpy as np
 import fsspec
-from datetime import datetime
+from datetime import datetime, timedelta
 from xsar.raster_readers import resource_strftime
 import re
 from numba import njit, prange
@@ -98,8 +102,48 @@ def call_meta_class(file, product_generation=False, footprint=None):
         raise ValueError(f"Can't recognize satellite type from product {basename}")
 
 
+def check_file_match_pattern_date(s_to_check: str, pattern, start_date):
+    # TODO improve to also match hour, minutes... and stop_date also
+    pattern_with_dates = insert_date_and_day_of_year(
+        pattern, start_date, str(start_date.timetuple().tm_yday)
+    )
+    regex_expr = re.sub(r"\*", r".*", pattern_with_dates)
+
+    return re.match(regex_expr, s_to_check) is not None
+
+
+def insert_date_and_day_of_year(str_expression, datetime_obj, day_of_year):
+    """
+    Convert special characters in an expression (like %m, %Y, %d and %(dayOfYear)) by the corresponding strings
+    (extracted from the date) and day of year (if one is needed)
+
+    Parameters
+    ----------
+    str_expression: str
+        Expression that contains special characters.
+        Example : '/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc'
+    datetime_obj: datetime.datetime
+        Date that need to be parsed in the expression
+    day_of_year: str | int
+        Day number of the year
+
+    Returns
+    -------
+    str
+        New expression with date and day of the year parsed.
+    """
+    str_expression = datetime_obj.strftime(str_expression)
+    str_expression = str_expression.replace("%(dayOfYear)", day_of_year)
+    return str_expression
+
+
 def get_all_comparison_files(
-    start_date=None, stop_date=None, ds_name="SMOS", input_ds=None, level=None
+    start_date=None,
+    stop_date=None,
+    ds_name="SMOS",
+    input_ds=None,
+    level=None,
+    accuracy="day",
 ):
     """
     Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5)
@@ -121,36 +165,14 @@ def get_all_comparison_files(
         When ds_name is SAR, precise the value of the product level. If it is None, get all SAR levels. Useless to give
         it a value when ds_name is something else then a SAR ('S1', 'RS2', 'RCM'). Values can be 1, 2 or None
         (default value).
+    accuracy: str
+        Defines if searched files are found on a day, hour, minute or second accuracy level.
 
     Returns
     -------
     List[str]
         Path of all existing products
     """
-
-    def insert_date_and_day_of_year(str_expression, datetime_obj, day_of_year):
-        """
-        Convert special characters in an expression (like %m, %Y, %d and %(dayOfYear)) by the corresponding strings
-        (extracted from the date) and day of year (if one is needed)
-
-        Parameters
-        ----------
-        str_expression: str
-            Expression that contains special characters.
-            Example : '/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc'
-        datetime_obj: datetime.datetime
-            Date that need to be parsed in the expression
-        day_of_year: str | int
-            Day number of the year
-
-        Returns
-        -------
-        str
-            New expression with date and day of the year parsed.
-        """
-        str_expression = datetime_obj.strftime(str_expression)
-        str_expression = str_expression.replace("%(dayOfYear)", day_of_year)
-        return str_expression
 
     def research_files(expression):
         if (input_ds is not None) and isinstance(input_ds, list):
@@ -230,6 +252,14 @@ def get_all_comparison_files(
             return final_files
 
     map_levels = {1: "L1", 2: "L2"}
+    if accuracy == "day":
+        match_date_patt = "%Y%m%d"
+    elif accuracy == "hour":
+        match_date_patt = "%Y%m%d%H"
+    elif accuracy == "minute":
+        match_date_patt = "%Y%m%d%H%M"
+    elif accuracy == "second":
+        match_date_patt = "%Y%m%d%H%M%S"
 
     root_paths = get_acquisition_root_paths(ds_name)
     product_levels = []
@@ -238,12 +268,12 @@ def get_all_comparison_files(
     elif (ds_name == "S1") or (ds_name == "RS2") or (ds_name == "RCM"):
         product_levels = list(root_paths.keys())
     files = []
-    schemes = date_schemes(start_date, stop_date)
+    schemes = date_schemes(start_date, stop_date, accuracy=accuracy)
     if ds_name == "SMOS":
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, "%Y%m%d")
+                date = datetime.strptime(scheme, match_date_patt)
                 parsed_path = insert_date_and_day_of_year(
                     str_expression=root_path,
                     datetime_obj=date,
@@ -255,7 +285,7 @@ def get_all_comparison_files(
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, "%Y%m%d")
+                date = datetime.strptime(scheme, match_date_patt)
                 parsed_path = insert_date_and_day_of_year(
                     str_expression=root_path,
                     datetime_obj=date,
@@ -272,7 +302,7 @@ def get_all_comparison_files(
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    date = datetime.strptime(scheme, "%Y%m%d")
+                    date = datetime.strptime(scheme, match_date_patt)
                     parsed_path = insert_date_and_day_of_year(
                         str_expression=root_path,
                         datetime_obj=date,
@@ -283,7 +313,7 @@ def get_all_comparison_files(
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    date = datetime.strptime(scheme, "%Y%m%d")
+                    date = datetime.strptime(scheme, match_date_patt)
                     parsed_path = insert_date_and_day_of_year(
                         str_expression=root_path,
                         datetime_obj=date,
@@ -294,7 +324,7 @@ def get_all_comparison_files(
         for lvl in product_levels:
             for root_path in root_paths[lvl]:
                 for scheme in schemes:
-                    date = datetime.strptime(scheme, "%Y%m%d")
+                    date = datetime.strptime(scheme, match_date_patt)
                     parsed_path = insert_date_and_day_of_year(
                         str_expression=root_path,
                         datetime_obj=date,
@@ -307,12 +337,17 @@ def get_all_comparison_files(
                 files = get_nearest_era5_files(start_date, stop_date, root_path)
             else:
                 files = research_files(
-                    root_path.replace("%Y", "*").replace("%m", "*").replace("%d", "*")
+                    root_path.replace("%Y", "*")
+                    .replace("%m", "*")
+                    .replace("%d", "*")
+                    .replace("%H", "*")
+                    .replace("%M", "*")
+                    .replace("%S", "*")
                 )
     elif ds_name == "WS":
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, "%Y%m%d")
+                date = datetime.strptime(scheme, match_date_patt)
                 parsed_path = insert_date_and_day_of_year(
                     str_expression=root_path,
                     datetime_obj=date,
@@ -322,7 +357,7 @@ def get_all_comparison_files(
     elif ds_name == "SMAP":
         for root_path in root_paths:
             for scheme in schemes:
-                date = datetime.strptime(scheme, "%Y%m%d")
+                date = datetime.strptime(scheme, match_date_patt)
                 parsed_path = insert_date_and_day_of_year(
                     str_expression=root_path,
                     datetime_obj=date,
@@ -412,25 +447,64 @@ def correct_dataset(dataset, lon_name="lon"):
     return dataset
 
 
-def date_schemes(start_date, stop_date):
+def date_schemes(start_date, stop_date, accuracy="day"):
     schemes = {}
-    if (start_date is not None) and (stop_date is not None):
-        date = np.datetime64(start_date, "s")
-        while date.astype("datetime64[D]") <= stop_date.astype("datetime64[D]"):
-            scheme = str(date.astype("datetime64[D]")).replace("-", "")
-            year = str(date.astype("datetime64[Y]"))
-            month = str(date.astype("datetime64[M]")).split("-")[1]
-            day_of_year = date.astype(datetime).strftime("%j")
-            date += np.timedelta64(1, "D")
-            tmp_dic = {"year": year, "dayOfYear": day_of_year, "month": month}
+
+    if start_date and stop_date:
+        date = start_date
+        increment_map = {
+            "day": timedelta(days=1),
+            "hour": timedelta(hours=1),
+            "minute": timedelta(minutes=1),
+            "second": timedelta(seconds=1),
+        }
+
+        if accuracy not in increment_map:
+            raise ValueError(
+                "Invalid accuracy value. Choose from 'day', 'hour', 'minute', 'second'"
+            )
+
+        increment = increment_map[accuracy]
+
+        while date <= stop_date:
+            scheme_date = date.strftime("%Y%m%d")
+            year = date.strftime("%Y")
+            month = date.strftime("%m")
+            day_of_year = date.strftime("%j")
+
+            tmp_dic = {"year": year, "dayOfYear": str(day_of_year), "month": month}
+
+            if accuracy == "hour":
+                hour = date.strftime("%H")
+                tmp_dic["hour"] = hour
+                scheme = scheme_date + hour
+            elif accuracy == "minute":
+                hour = date.strftime("%H")
+                minute = date.strftime("%M")
+                tmp_dic["hour"] = hour
+                tmp_dic["minute"] = minute
+                scheme = scheme_date + hour + minute
+            elif accuracy == "second":
+                hour = date.strftime("%H")
+                minute = date.strftime("%M")
+                second = date.strftime("%S")
+                tmp_dic["hour"] = hour
+                tmp_dic["minute"] = minute
+                tmp_dic["second"] = second
+                scheme = scheme_date + hour + minute + second
+            else:
+                scheme = scheme_date
+
             schemes[scheme] = tmp_dic
+            date += increment
     else:
         schemes = {"*": {"year": "*", "dayOfYear": "*", "month": "*"}}
+
     return schemes
 
 
 def extract_start_stop_dates_from_hy(product_path):
-    ds = open_nc(product_path)
+    ds = GetHy2Meta._open_nc(product_path)
     unique_time = np.unique(ds.time)
     return min(unique_time), max(unique_time)
 
@@ -818,7 +892,6 @@ def point_in_polygon(x, y, polygon):
 @njit(parallel=True)
 def filter_data_polygon(lon, lat, data_vars, polygon):
     mask = np.zeros(lon.shape, dtype=np.bool_)
-
     for i in prange(lon.shape[0]):
         for j in range(lon.shape[1]):
             mask[i, j] = point_in_polygon(lon[i, j], lat[i, j], polygon)
@@ -828,6 +901,7 @@ def filter_data_polygon(lon, lat, data_vars, polygon):
 
     filtered_indices = np.argwhere(mask)
     if filtered_indices.size == 0:
+        print("Filtering using polygon left no data.")
         return data_vars, None, None
 
     # Get the minimum and maximum row and column indices
@@ -899,8 +973,8 @@ def compute_colocated_data(
     colocated_data_1,
     colocated_data_2,
     main_var_name_1,
+    radius_km,
 ):
-    radius_km = 12.5
 
     for i in prange(lon_1.shape[0]):
         for j in prange(lon_1.shape[1]):
@@ -929,3 +1003,6 @@ def compute_colocated_data(
                     colocated_data_2[coloc_2_var][i, j] = mean_filtered_data
 
     return colocated_data_1, colocated_data_2
+
+
+from coloc_sat.hy2_meta import GetHy2Meta

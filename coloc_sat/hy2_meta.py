@@ -1,4 +1,4 @@
-from .tools import open_nc, correct_dataset
+from .tools import correct_dataset
 import os
 import numpy as np
 import xarray as xr

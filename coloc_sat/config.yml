@@ -3,7 +3,7 @@ paths:
     - '/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc'
     - '/home/ref-smoswind-public/data/v3.0/l3/data/nrt/%Y/%(dayOfYear)/*%Y%m%d*.nc'
   HY2:
-    - '/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data/%Y/%(dayOfYear)/*%Y%m%d*.nc'
+    - '/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc'
   ERA5:
     - '/home/ref-ecmwf/ERA5/%Y/%m/era_5-copernicus__%Y%m%d.nc'
   RS2:
@@ -15,8 +15,9 @@ paths:
     L1:
       - '/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*SAFE'
     L2:
-      - '/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003*_ll_gd.nc'
-      - '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*0003*_ll_gd.nc'
+      - '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/2024v5v27_0v9v1_0v2v3vpost8_1v0v8_1v0v6_1v0v6_1v1v11_1v0v2_1v0v1_1v2v0/cmod5n_ecmwf/sentinel-1a/L1/IW/S1A_IW_GRDH_1S/%Y/%(dayOfYear)/S1*%Y%m%d*/s1*owi-xx-%Y%m%dt%H%M%S*.nc'
+      #- '/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003*_ll_gd.nc'
+      #- '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*0003*_ll_gd.nc'
   RCM:
     L1:
       - '/home/datawork-cersat-public/provider/asc-csa/satellite/l1/rcm/*/*/*/%Y/%(dayOfYear)/RCM*%Y%m%d*'
@@ -34,3 +35,12 @@ common_var_names:
   longitude: lon
   latitude: lat
   time: time
+
+# Config necessary for parquet script
+dataset_name_1: "S1"
+dataset_name_2: "HY2"
+match_time_accuracy_1: "second"
+match_time_accuracy_2: "minute"
+match_filename_1: false
+match_filename_2: true
+
