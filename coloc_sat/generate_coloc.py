@@ -9,7 +9,7 @@ from .tools import (
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
 import numpy as np
-
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -95,14 +95,30 @@ class GenerateColoc:
             product_generation=self._product_generation,
             footprint=kwargs["footprint1"],
         )
-        self.footprint1 = kwargs["footprint1"]
-        self.footprints_other = [kwargs["footprint2"]]
         self.product2_id = kwargs.get("product2_id", None)
+
+        self.footprint1 = kwargs["footprint1"]
+        self.footprints_other = []
+        if (
+            "footprint2" in kwargs
+            and kwargs["footprint2"] is not None
+            and self.product2_id is not None
+        ):
+            self.footprints_other = [kwargs["footprint2"]]
+        elif (
+            "footprint2" in kwargs
+            and kwargs["footprint2"] is not None
+            and self.product2_id is None
+        ):
+            raise ValueError(
+                "footprint2 is given but not product2_id. Both or none is expected."
+            )
+
         if self.product2_id is not None:
             self.product2 = call_meta_class(
                 self.product2_id,
                 product_generation=self._product_generation,
-                footprint=kwargs["footprint2"],
+                footprint=kwargs.get("footprint2", None),
             )
         else:
             self.product2 = None
@@ -286,8 +302,8 @@ class GenerateColoc:
             return [self.product2_id]
         else:
             all_comparison_files = get_all_comparison_files(
-                self.product1_start_date,
-                self.product1_stop_date,
+                pd.to_datetime(self.product1_start_date),
+                pd.to_datetime(self.product1_stop_date),
                 ds_name=self.ds_name,
                 input_ds=self.input_ds,
                 level=self.level,

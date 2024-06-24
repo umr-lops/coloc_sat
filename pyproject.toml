@@ -14,6 +14,7 @@ dependencies = [
     "fsspec",
     "affine",
     "pandas",
+    "geopandas",
     "dask",
     "more-itertools",
     "pyyaml",
@@ -45,3 +46,4 @@ known_first_party = "coloc_sat"
 [project.scripts]
 Coloc_between_product_and_mission = "coloc_sat.scripts.coloc_between_product_and_mission:main"
 Coloc_2_products = "coloc_sat.scripts.coloc_2_products:main"
+Coloc_from_parquet = "coloc_sat.scripts.coloc_from_parquet:main"

@@ -35,6 +35,7 @@ requirements:
     - fsspec
     - affine
     - pandas
+    - geopandas
     - dask
     - more-itertools
     - pyyaml

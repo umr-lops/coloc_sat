@@ -674,6 +674,9 @@ class ProductIntersection:
             Two first values of the dictionary are resampled datasets from meta1 and meta 2.  Last value is a string
             that precise which dataset of both has been reprojected.
         """
+        # FIXME this should be a parameter
+        radius_km = 25 * np.sqrt(2) / 2
+
         logger.info("Starting resampling.")
         existing_dataset_keys = list(self._datasets.keys())
         logger.info("Getting datasets.")
@@ -720,8 +723,10 @@ class ProductIntersection:
         lon_2 = ds2[lon_name_2].values
         lat_2 = ds2[lat_name_2].values
 
-        lon_1_delta = np.mean(np.abs(np.diff(lon_1)))
-        lon_2_delta = np.mean(np.abs(np.diff(lon_2)))
+        lon_1_delta = np.mean(np.abs(np.diff(lon_1[~np.isnan(lon_1)])))
+        lon_2_delta = np.mean(np.abs(np.diff(lon_2[~np.isnan(lon_2)])))
+        if np.isnan(lon_1_delta) or np.isnan(lon_2_delta):
+            raise ValueError("lon_1_delta or lon_2_delta should not be NaN")
 
         data_vars_1 = Dict.empty(
             key_type=types.unicode_type, value_type=types.float64[:, :]
@@ -744,6 +749,15 @@ class ProductIntersection:
         data_2_reduced, lon_2_reduced, lat_2_reduced = filter_data_polygon(
             lon_2, lat_2, data_vars_2, polyg_coords
         )
+
+        if lon_1_reduced is None or lon_2_reduced is None:
+            raise ValueError(
+                "Reduced lon/lat arrays must not be None. Verify that the two datasets really intersects."
+            )
+        if lon_1_reduced.size == 0 or lon_2_reduced.size == 0:
+            raise ValueError(
+                "Reduced lon/lat arrays must not be empty. Verify that the two datasets really intersects."
+            )
 
         if lon_1_delta > lon_2_delta:
             lon_reduced = lon_1_reduced
@@ -778,6 +792,7 @@ class ProductIntersection:
                 colocated_data_1,
                 colocated_data_2,
                 "wind_speed",
+                radius_km,
             )
         else:
             reprojected_dataset = "dataset1"
@@ -792,6 +807,7 @@ class ProductIntersection:
                 colocated_data_2,
                 colocated_data_1,
                 "wind_speed",
+                radius_km,
             )
 
         colocated_ds_1 = xr.Dataset(
@@ -1140,7 +1156,7 @@ class ProductIntersection:
                 "counted_points": counted_points,
                 "vmax_m_s": sum_wind_speed.max().item(),
             }
-            if counted_points > 100:
+            if counted_points > 5:
                 # Determine the bias  # (m/s)
                 # https://numpy.org/doc/stable/reference/generated/numpy.nanmean.html#numpy.nanmean
                 dict_ws_analysis["Bias"] = np.nanmean(
