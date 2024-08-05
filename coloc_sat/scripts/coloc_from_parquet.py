@@ -27,10 +27,10 @@ def main():
     parser.add_argument(
         "-d",
         "--destination-folder",
-        default="/tmp",
+        default=None,
         nargs="?",
         type=str,
-        help="Folder path for the output.",
+        help="Folder path for the output. Can also be given individually for each coloc in the .parquet file as 'destination_folder' column. Optional, but necessary either in arguments or in the .parquet.",
     )
     parser.add_argument(
         "--delta-time",
@@ -60,6 +60,26 @@ def main():
         type=str,
         help="Configuration file to use instead of the " "default one.",
     )
+    parser.add_argument(
+        "--parallel",
+        action="store_true",
+        help="Enable parallel processing on dask LocalCluster",
+    )
+    parser.add_argument(
+        "--parallel-datarmor",
+        action="store_true",
+        help="Enable parallel processing on datarmor",
+    )
+    parser.add_argument(
+        "--n-workers", type=int, help="Number of worker to use.", default=7
+    )
+    parser.add_argument(
+        "--memory",
+        type=int,
+        help="Memory to use in GB (useful only in datarmor mode)",
+        default=1,
+    )
+
     parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("-v", "--version", action="store_true", help="Print version")
 
