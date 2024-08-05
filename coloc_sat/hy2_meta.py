@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 from .tools import correct_dataset
 import os
 import numpy as np
@@ -23,7 +27,7 @@ class GetHy2Meta:
 
     @staticmethod
     def _open_nc(product_path):
-
+        logger.debug(f"Opening {product_path}")
         ds = xr.open_dataset(product_path, decode_cf=False)
         # Convert all integer variables to float
         for var in ds.data_vars:
