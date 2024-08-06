@@ -15,6 +15,7 @@ import os
 from dask.distributed import Client
 from dask import delayed, compute
 import traceback
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,8 @@ def process_parquet_coloc(
     time_accuracy_2,
     match_filename_1,
     match_filename_2,
+    match_time_delta_sec_1,
+    match_time_delta_sec_2,
     destination_folder,
     product_generation,
     delta_time,
@@ -92,8 +95,8 @@ def process_parquet_coloc(
         #    continue
 
         o_files = get_all_comparison_files(
-            start_date=row["match_start"],
-            stop_date=row["match_end"],
+            start_date=row["match_start"] - match_time_delta_sec_2,
+            stop_date=row["match_end"] + match_time_delta_sec_2,
             ds_name=ds2,
             input_ds=None,
             level=2,
@@ -116,8 +119,8 @@ def process_parquet_coloc(
             o_file = o_files[0]
 
         ref_files = get_all_comparison_files(
-            start_date=row["ref_start"],
-            stop_date=row["ref_end"],
+            start_date=row["ref_start"] - match_time_delta_sec_1,
+            stop_date=row["ref_end"] + match_time_delta_sec_1,
             ds_name=ds1,
             input_ds=None,
             level=2,
@@ -230,6 +233,8 @@ def coloc_from_parquet(
     t_acc_2 = conf_data["match_time_accuracy_2"]
     match_filename_1 = conf_data["match_filename_1"]
     match_filename_2 = conf_data["match_filename_2"]
+    match_time_delta_sec_1 = timedelta(seconds=conf_data["match_time_delta_seconds_1"])
+    match_time_delta_sec_2 = timedelta(seconds=conf_data["match_time_delta_seconds_2"])
 
     sar_ds = ["S1", "RS2", "RCM"]
     if ds1 in sar_ds:
@@ -276,6 +281,8 @@ def coloc_from_parquet(
                 t_acc_2,
                 match_filename_1,
                 match_filename_2,
+                match_time_delta_sec_1,
+                match_time_delta_sec_2,
                 row["destination_folder"],
                 product_generation,
                 delta_time,
@@ -298,6 +305,8 @@ def coloc_from_parquet(
                 t_acc_2,
                 match_filename_1,
                 match_filename_2,
+                match_time_delta_sec_1,
+                match_time_delta_sec_2,
                 row["destination_folder"],
                 product_generation,
                 delta_time,

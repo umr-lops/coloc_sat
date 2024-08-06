@@ -44,6 +44,8 @@ match_time_accuracy_1: "second"
 match_time_accuracy_2: "minute"
 match_filename_1: false
 match_filename_2: true
+match_time_delta_seconds_1: 120
+match_time_delta_seconds_2: 0
 
 # Not implemented
 # multiprocessing can be true, datarmor, or false
