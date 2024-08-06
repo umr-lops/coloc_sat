@@ -12,9 +12,9 @@ class GetSmosMeta:
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.product_generation = product_generation
-        self._time_name = 'measurement_time'
-        self._longitude_name = 'lon'
-        self._latitude_name = 'lat'
+        self._time_name = "measurement_time"
+        self._longitude_name = "lon"
+        self._latitude_name = "lat"
         self._dataset = open_smos_file(product_path).squeeze().load()
         self.dataset = correct_dataset(self.dataset, self.longitude_name)
 
@@ -132,8 +132,15 @@ class GetSmosMeta:
         list[str]
             Necessary dataset attributes in co-location product
         """
-        return ['Conventions', 'institution', 'title', 'grid_mapping', 'Metadata_Conventions', 'references',
-                'product_version']
+        return [
+            "Conventions",
+            "institution",
+            "title",
+            "grid_mapping",
+            "Metadata_Conventions",
+            "references",
+            "product_version",
+        ]
 
     def rename_attrs_in_coloc_product(self, attr):
         """
@@ -150,8 +157,8 @@ class GetSmosMeta:
             New attribute's name from the satellite dataset.
         """
         mapper = {
-            'references': 'reference',
-            'product_version': 'sourceProductVersion',
+            "references": "reference",
+            "product_version": "sourceProductVersion",
         }
         if attr in mapper.keys():
             return mapper[attr]
@@ -169,7 +176,7 @@ class GetSmosMeta:
             acquisition type
 
         """
-        return 'daily_regular_grid'
+        return "daily_regular_grid"
 
     @property
     def dataset(self):
@@ -234,7 +241,7 @@ class GetSmosMeta:
             Wind variable name
 
         """
-        return 'wind_speed'
+        return "wind_speed"
 
     def lon_lat_names_setter(self, longitude=None, latitude=None):
         if longitude is not None:

@@ -14,9 +14,44 @@ import numpy as np
 import os
 from dask.distributed import Client
 from dask import delayed, compute
-
+import traceback
 
 logger = logging.getLogger(__name__)
+
+
+def setup_logger(filename):
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    # Create file handler which logs even debug messages
+    fh = logging.FileHandler(filename)
+    fh.setLevel(logging.INFO)
+
+    # Create console handler with a higher log level
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+
+    # Create formatter and add it to the handlers
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    fh.setFormatter(formatter)
+    ch.setFormatter(formatter)
+
+    # Add the handlers to the logger
+    logger.addHandler(fh)
+    logger.addHandler(ch)
+
+    return logger, fh, ch
+
+
+def teardown_logger(logger, fh, ch):
+    # Remove handlers to stop logging to the file
+    logger.removeHandler(fh)
+    logger.removeHandler(ch)
+
+    fh.close()
+    ch.close()
 
 
 def process_parquet_coloc(
@@ -35,84 +70,105 @@ def process_parquet_coloc(
     minimal_area,
     resampling_method,
     config,
+    exception_to_log=True,
+    log_name="coloc_hy2.log",
+    status_name="coloc_hy2.status",
 ):
-    
-    footprint1 = row["ref_geometry"]
-    footprint2 = row["match_geometry"]
+    if exception_to_log:
+        log_path = os.path.join(destination_folder, log_name)
+        status_path = os.path.join(destination_folder, status_name)
+        os.makedirs(destination_folder, exist_ok=True)
+        logger, fh, ch = setup_logger(log_path)
+        status = 1
 
-    # if (
-    #    row["ref_granule"]
-    #    != "S1A_IW_OCN__2SDV_20220531T235908_20220531T235933_043462_05308F_8771.SAFE"
-    # ):
-    #    continue
+    try:
+        footprint1 = row["ref_geometry"]
+        footprint2 = row["match_geometry"]
 
-    o_files = get_all_comparison_files(
-        start_date=row["match_start"],
-        stop_date=row["match_end"],
-        ds_name=ds2,
-        input_ds=None,
-        level=2,
-        accuracy=time_accuracy_2,
-    )
+        # if (
+        #    row["ref_granule"]
+        #    != "S1A_IW_OCN__2SDV_20220531T235908_20220531T235933_043462_05308F_8771.SAFE"
+        # ):
+        #    continue
 
-    if len(o_files) == 0:
-        logger.warning(f"No file found for {row['match_granule']}")
-        return 2
+        o_files = get_all_comparison_files(
+            start_date=row["match_start"],
+            stop_date=row["match_end"],
+            ds_name=ds2,
+            input_ds=None,
+            level=2,
+            accuracy=time_accuracy_2,
+        )
 
-    if match_filename_2:
-        o_file = None
-        for f in o_files:
-            if check_file_match_pattern_date(f, data_base_2, row["match_start"]):
-                o_file = f
-        if not o_file:
-            logger.warning(f"File {row['match_granule']} not found.")
+        if len(o_files) == 0:
+            logger.warning(f"No file found for {row['match_granule']}")
             return 2
-    else:
-        o_file = o_files[0]
 
-    ref_files = get_all_comparison_files(
-        start_date=row["ref_start"],
-        stop_date=row["ref_end"],
-        ds_name=ds1,
-        input_ds=None,
-        level=2,
-        accuracy=time_accuracy_1,
-    )
-    if len(ref_files) == 0:
-        logger.warning(f"No file found for {row['ref_granule']}, {row['ref_start']}, {row['ref_end']}")
-        return 2
+        if match_filename_2:
+            o_file = None
+            for f in o_files:
+                if check_file_match_pattern_date(f, data_base_2, row["match_start"]):
+                    o_file = f
+            if not o_file:
+                logger.warning(f"File {row['match_granule']} not found.")
+                return 2
+        else:
+            o_file = o_files[0]
 
-    if match_filename_1:
-        r_file = None
-        for f in ref_files:
-            if check_file_match_pattern_date(f, data_base_1, row["ref_start"]):
-                r_file = f
-        if not r_file:
-            logger.warning(f"File {row['ref_granule']} not found.")
+        ref_files = get_all_comparison_files(
+            start_date=row["ref_start"],
+            stop_date=row["ref_end"],
+            ds_name=ds1,
+            input_ds=None,
+            level=2,
+            accuracy=time_accuracy_1,
+        )
+        if len(ref_files) == 0:
+            logger.warning(
+                f"No file found for {row['ref_granule']}, {row['ref_start']}, {row['ref_end']}"
+            )
             return 2
-    else:
-        r_file = ref_files[0]
 
-    logger.info(f"Found file {ref_files[0]}")
-    logger.info(f"Found file {o_file}")
+        if match_filename_1:
+            r_file = None
+            for f in ref_files:
+                if check_file_match_pattern_date(f, data_base_1, row["ref_start"]):
+                    r_file = f
+            if not r_file:
+                logger.warning(f"File {row['ref_granule']} not found.")
+                return 2
+        else:
+            r_file = ref_files[0]
 
-    logger.info(f"Process {row['ref_granule']} and {row['match_granule']}")
+        logger.info(f"Found file {ref_files[0]}")
+        logger.info(f"Found file {o_file}")
 
-    generator = GenerateColoc(
-        product1_id=o_file,
-        product2_id=r_file,
-        footprint1=footprint2,
-        footprint2=footprint1,
-        destination_folder=destination_folder,
-        product_generation=product_generation,
-        delta_time=delta_time,
-        minimal_area=minimal_area,
-        resampling_method=resampling_method,
-        config=config,
-    )
-    status = generator.save_results()
-    if status != 0:
-        return 1
+        logger.info(f"Process {row['ref_granule']} and {row['match_granule']}")
+
+        generator = GenerateColoc(
+            product1_id=o_file,
+            product2_id=r_file,
+            footprint1=footprint2,
+            footprint2=footprint1,
+            destination_folder=destination_folder,
+            product_generation=product_generation,
+            delta_time=delta_time,
+            minimal_area=minimal_area,
+            resampling_method=resampling_method,
+            config=config,
+        )
+        status = generator.save_results()
+
+    except Exception as e:
+        if exception_to_log:
+            logger.error(traceback.format_exc())
+            status = 1
+        else:
+            raise e
+    finally:
+        teardown_logger(logger, fh, ch)
+        with open(status_path, "w") as status_f:
+            status_f.write(str(status))
 
 
 def coloc_from_parquet(
@@ -208,7 +264,6 @@ def coloc_from_parquet(
                 f"Unsupported value {filter_dataset_unique} for filter_dataset_unique. Must be 'ref' or 'match'."
             )
 
-    print("YAAA", prq["destination_folder"])
     if parallel or parallel_datarmor:
         tasks = [
             delayed(process_parquet_coloc)(
@@ -250,5 +305,5 @@ def coloc_from_parquet(
                 resampling_method,
                 config,
             )
-            if status == 1:
-                raise RuntimeError(f"Fail to process, status {status}")
+            # if status == 1:
+            #    raise RuntimeError(f"Fail to process, status {status}")

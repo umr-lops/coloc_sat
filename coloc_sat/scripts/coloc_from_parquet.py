@@ -128,3 +128,4 @@ def main():
     coloc_from_parquet(**vars(args))
 
     logger.info("Coloc python program successfully ended")
+    sys.exit(0)
