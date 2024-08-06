@@ -113,7 +113,7 @@ class GetHy2Meta:
     @property
     def mission_name(self):
         """
-        Get the mission name (ex : RADARSAT-2, RCM, SENTINEL-1, SMOS, SMAP,...)
+        Get the mission name (ex : RADARSAT-2, Radarsat Constellation, SENTINEL-1A..)
 
         Returns
         -------
@@ -186,18 +186,6 @@ class GetHy2Meta:
             return True
         else:
             return False
-
-    @property
-    def mission_name(self):
-        """
-        Name of the mission (or model)
-
-        Returns
-        -------
-        str
-            Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
-        """
-        return "HY2"
 
     @longitude_name.setter
     def longitude_name(self, value):
