@@ -83,8 +83,14 @@ def process_parquet_coloc(
         os.makedirs(destination_folder, exist_ok=True)
         logger, fh, ch = setup_logger(log_path)
         status = 1
+    else:
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
 
     try:
+        if config is not None:
+            set_config(config)
+
         footprint1 = row["ref_geometry"]
         footprint2 = row["match_geometry"]
 
@@ -128,7 +134,7 @@ def process_parquet_coloc(
         )
         if len(ref_files) == 0:
             logger.warning(
-                f"No file found for {row['ref_granule']}, {row['ref_start']}, {row['ref_end']}"
+                f"No file found for {row['ref_granule']}, {row['ref_start'] - match_time_delta_sec_1}, {row['ref_end'] + match_time_delta_sec_1}"
             )
             return 2
 
@@ -169,9 +175,10 @@ def process_parquet_coloc(
         else:
             raise e
     finally:
-        teardown_logger(logger, fh, ch)
-        with open(status_path, "w") as status_f:
-            status_f.write(str(status))
+        if exception_to_log:
+            teardown_logger(logger, fh, ch)
+            with open(status_path, "w") as status_f:
+                status_f.write(str(status))
 
 
 def coloc_from_parquet(

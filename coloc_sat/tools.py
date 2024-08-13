@@ -26,15 +26,7 @@ def get_config_path():
     if param_config is not None:
         return param_config
     else:
-        # determine the config file we will use (config.yml by default, and a local config if one is present)
-        local_config_pontential_path = Path(
-            os.path.join("~", "coloc_sat", "localconfig.yml")
-        ).expanduser()
-        if local_config_pontential_path.exists():
-            config_path = local_config_pontential_path
-        else:
-            config_path = Path(os.path.join(os.path.dirname(__file__), "config.yml"))
-        return config_path
+        raise ValueError("Config is not defined")
 
 
 def load_config():
@@ -42,20 +34,16 @@ def load_config():
         config = yaml.safe_load(file)
     return config
 
-
-common_var_names = load_config().get("common_var_names", {})
-
-
 def set_config(config_path: str):
     global param_config
     global common_var_names
-
     param_config = config_path
     common_var_names = load_config().get("common_var_names", {})
 
 
 def get_acquisition_root_paths(ds_name):
     paths_dict = load_config().get("paths", {})
+    logger.warning(f"Acquisition_root_paths: {paths_dict}")
     return paths_dict[ds_name]
 
 
