@@ -2,8 +2,6 @@ import argparse
 import sys
 import rasterio.enums
 import logging
-from shapely.wkt import loads
-
 
 def main():
     resampling_methods = [method.name for method in rasterio.enums.Resampling]
@@ -71,7 +69,7 @@ def main():
         help="Enable parallel processing on datarmor",
     )
     parser.add_argument(
-        "--n-workers", type=int, help="Number of worker to use.", default=7
+        "--n-workers", type=int, help="Number of worker to use.", default=1
     )
     parser.add_argument(
         "--memory",
@@ -106,11 +104,15 @@ def main():
         coloc_logger = logging.getLogger("coloc_sat")
         coloc_logger.setLevel(logging.INFO)
 
-    from coloc_sat.intersection import __version__
+    from coloc_sat.version import __version__
 
     if args.version:
         print(__version__)
         sys.exit(0)
+
+    from coloc_sat.tools import set_config
+    set_config(args.config)
+
     from coloc_sat.parquet_coloc import coloc_from_parquet
 
     logger.info(f"The script is executed from {__file__}")

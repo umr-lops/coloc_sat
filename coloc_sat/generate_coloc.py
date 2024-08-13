@@ -82,6 +82,7 @@ class GenerateColoc:
     ):
         config_path = kwargs.get("config", None)
         if config_path is not None:
+            
             set_config(config_path)
         # Define descriptive attributes
         self.level = kwargs.get("level", None)
