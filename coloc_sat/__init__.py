@@ -31,7 +31,7 @@ def init_cluster(n_workers: int, memory: int):
     cluster = PBSCluster(
         cores=nprocs,
         memory=memory,
-        project="wind_distribution",
+        project="coloc_sat",
         queue="sequentiel",
         processes=nprocs,
         resource_spec="select=1:ncpus=%d:mem=%s" % (nprocs, memory),
