@@ -8,15 +8,22 @@ def extract_wind_speed(smos_dataset):
 
 
 class GetSmosMeta:
-    def __init__(self, product_path, product_generation=False):
+    def __init__(self, product_path, product_generation=False, footprint=None):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.product_generation = product_generation
         self._time_name = "measurement_time"
         self._longitude_name = "lon"
         self._latitude_name = "lat"
+        if footprint is not None:
+            self._footprint = footprint
         self._dataset = open_smos_file(product_path).squeeze().load()
         self.dataset = correct_dataset(self.dataset, self.longitude_name)
+
+    @property
+    def footprint(self):
+        if hasattr(self, "_footprint"):
+            return self._footprint
 
     @property
     def start_date(self):
