@@ -15,8 +15,7 @@ paths:
     L1:
       - '/home/datawork-cersat-public/cache/project/mpc-sentinel1/data/esa/sentinel-1*/L1/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*SAFE'
     L2:
-      - '/tmp/chain_processing/processings/l2ocn_2024v6v24_1v1_0v2v3vpost9_1v0v8_1v0v6_1v0v6_1v1v11_1v0v3_1v0v1_1v2v0/config_example_ocn/sentinel-1*/L1/IW/S1A_IW_GRDH_1S/%Y/%(dayOfYear)/S1*%Y%m%d*/s1*owi-xx-%Y%m%dt%H%M%S*.nc'
-      #- '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/2024v5v27_0v9v1_0v2v3vpost8_1v0v8_1v0v6_1v0v6_1v1v11_1v0v2_1v0v1_1v2v0/cmod5n_ecmwf/sentinel-1a/L1/IW/S1A_IW_GRDH_1S/%Y/%(dayOfYear)/S1*%Y%m%d*/s1*owi-xx-%Y%m%dt%H%M%S*.nc'
+      - '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/2024v2v1_0v9_0v2v3vpost7_1v0v8_1v0v6_1v0v6_1v1v11_1v0v2_1v0v1_1v1v1/all_plugins_no_recal/sentinel-1a/L1/IW/S1A_IW_GRDH_1S/%Y/%(dayOfYear)/S1*%Y%m%d*/s1*owi-*-%Y%m%dt%H%M%S*0003*_ll_gd.nc'
       #- '/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003*_ll_gd.nc'
       #- '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*0003*_ll_gd.nc'
   RCM:
@@ -38,14 +37,14 @@ common_var_names:
   time: time
 
 # Config necessary for parquet script
-dataset_name_1: "S1"
-dataset_name_2: "HY2"
-match_time_accuracy_1: "second"
-match_time_accuracy_2: "minute"
-match_filename_1: false
-match_filename_2: true
-match_time_delta_seconds_1: 120
-match_time_delta_seconds_2: 0
+#dataset_name_1: "S1"
+#dataset_name_2: "HY2"
+#match_time_accuracy_1: "second"
+#match_time_accuracy_2: "minute"
+#match_filename_1: false
+#match_filename_2: true
+#match_time_delta_seconds_1: 0
+#match_time_delta_seconds_2: 0
 
 # Not implemented
 # multiprocessing can be true, datarmor, or false

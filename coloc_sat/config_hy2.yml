@@ -1,0 +1,27 @@
+paths:
+    HY2:
+    - '/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc'
+    S1:
+        L2:
+        - '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/l2ocn_2024v7v30_1v2_0v2v3vpost12_0v0v2_1v0v8_1v0v6_1v0v6_1v2v2/ocn_cmod5n_flat_ecmwf/sentinel-1*/L2/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/s1*-owi-*-%Y%m%dt%H%M%S*.nc'
+        #- '/tmp/chain_processing/processings/l2ocn_2024v7v30_1v2_0v2v3vpost12_0v0v2_1v0v8_1v0v6_1v0v6_1v2v2/ocn_cmod5n_flat_ecmwf/sentinel-1*/L2/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/s1*-owi-vv-%Y%m%dt%H%M%S*.nc'
+        #- '/home/datawork-cersat-public/cache/project/sarwing/data/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*000003*_ll_gd.nc'
+        #- '/home/datawork-cersat-public/cache/public/ftp/project/sarwing/processings/c39e79a/default/sentinel-1*/*/*/*/%Y/%(dayOfYear)/S1*%Y%m%d*/post_processing/nclight_L2M/s1*owi*%Y%m%d*0003*_ll_gd.nc'
+
+common_var_names:
+    wind_speed: wind_speed
+    wind_direction: wind_direction_ecmwf
+    wind_from_direction: wind_from_direction
+    longitude: lon
+    latitude: lat
+    time: time
+
+# Config necessary for parquet script
+dataset_name_1: "S1"
+dataset_name_2: "HY2"
+match_time_accuracy_1: "second"
+match_time_accuracy_2: "minute"
+match_filename_1: false
+match_filename_2: true
+match_time_delta_seconds_1: 0
+match_time_delta_seconds_2: 0
