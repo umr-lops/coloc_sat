@@ -82,7 +82,6 @@ class GenerateColoc:
     ):
         config_path = kwargs.get("config", None)
         if config_path is not None:
-            
             set_config(config_path)
         # Define descriptive attributes
         self.level = kwargs.get("level", None)
@@ -91,14 +90,16 @@ class GenerateColoc:
         self._product_generation = product_generation
         self._listing = listing
         self.product1_id = product1_id
+
+        footprint1 = kwargs.get("footprint1", None)
         self.product1 = call_meta_class(
             self.product1_id,
             product_generation=self._product_generation,
-            footprint=kwargs["footprint1"],
+            footprint=footprint1,
         )
         self.product2_id = kwargs.get("product2_id", None)
 
-        self.footprint1 = kwargs["footprint1"]
+        self.footprint1 = footprint1
         self.footprints_other = []
         if (
             "footprint2" in kwargs

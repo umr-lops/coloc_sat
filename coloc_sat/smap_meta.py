@@ -7,20 +7,28 @@ from .tools import open_nc, convert_mingmt, correct_dataset, common_var_names
 
 
 class GetSmapMeta:
-    def __init__(self, product_path, product_generation=False):
+    def __init__(self, product_path, product_generation=False, footprint=None):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.product_generation = product_generation
-        self._time_name = 'time'
-        self._longitude_name = 'lon'
-        self._latitude_name = 'lat'
+        self._time_name = "time"
+        self._longitude_name = "lon"
+        self._latitude_name = "lat"
+        if footprint is not None:
+            self._footprint = footprint
         self._dataset = open_nc(product_path).load()
         self.dataset = self.add_source_reference_attribute(ds=self.dataset)
         self.dataset = correct_dataset(self.dataset, self.longitude_name)
         self.dataset = convert_mingmt(self)
         # Modify orbit values by ascending and descending to be more significant
-        self.dataset[self.orbit_segment_name] = \
-            xr.where(self.dataset[self.orbit_segment_name] == 0, 'ascending', 'descending')
+        self.dataset[self.orbit_segment_name] = xr.where(
+            self.dataset[self.orbit_segment_name] == 0, "ascending", "descending"
+        )
+
+    @property
+    def footprint(self):
+        if hasattr(self, "_footprint"):
+            return self._footprint
 
     @property
     def longitude_name(self):
@@ -93,7 +101,7 @@ class GetSmapMeta:
             acquisition type
 
         """
-        return 'daily_regular_grid'
+        return "daily_regular_grid"
 
     @property
     def start_date(self):
@@ -130,7 +138,7 @@ class GetSmapMeta:
         str | None
             Orbit segmentation variable name in the dataset. None if there isn't one.
         """
-        return 'node'
+        return "node"
 
     @property
     def has_orbited_segmentation(self):
@@ -157,7 +165,7 @@ class GetSmapMeta:
         str
             Minute variable name
         """
-        return 'minute'
+        return "minute"
 
     @property
     def day_date(self):
@@ -169,9 +177,9 @@ class GetSmapMeta:
         datetime.datetime
         Day date of the product
         """
-        split_name = self.product_name.split('_')
-        str_date = ''.join(split_name[4: 7])
-        return datetime.strptime(str_date, '%Y%m%d')
+        split_name = self.product_name.split("_")
+        str_date = "".join(split_name[4:7])
+        return datetime.strptime(str_date, "%Y%m%d")
 
     @property
     def mission_name(self):
@@ -204,12 +212,14 @@ class GetSmapMeta:
             dataset = self.dataset
         # map the variable names in the dataset with the keys in common vars
         mapper = {
-            self.wind_name: 'wind_speed',
+            self.wind_name: "wind_speed",
         }
         for var in dataset.variables:
             if var in mapper.keys():
                 key_in_common_vars = mapper[var]
-                dataset = dataset.rename_vars({var: common_var_names[key_in_common_vars]})
+                dataset = dataset.rename_vars(
+                    {var: common_var_names[key_in_common_vars]}
+                )
         return dataset
 
     @property
@@ -234,7 +244,14 @@ class GetSmapMeta:
         list[str]
             Necessary dataset attributes in co-location product
         """
-        return ['Conventions', 'title', 'institution', 'grid_mapping', 'version', 'sourceReference']
+        return [
+            "Conventions",
+            "title",
+            "institution",
+            "grid_mapping",
+            "version",
+            "sourceReference",
+        ]
 
     def rename_attrs_in_coloc_product(self, attr):
         """
@@ -251,7 +268,7 @@ class GetSmapMeta:
             New attribute's name from the satellite dataset.
         """
         mapper = {
-            'version': 'sourceProductVersion',
+            "version": "sourceProductVersion",
         }
         if attr in mapper.keys():
             return mapper[attr]
@@ -269,9 +286,9 @@ class GetSmapMeta:
             Wind variable name
 
         """
-        return 'wind'
+        return "wind"
 
-    def add_source_reference_attribute(self, ds=None, attr_name='reference'):
+    def add_source_reference_attribute(self, ds=None, attr_name="reference"):
         """
         Add the source reference attribute in a SMAP dataset. The name given to this attribute is chosen with the
         argument  `attr_name`
@@ -289,13 +306,13 @@ class GetSmapMeta:
             Dataset that contains the source reference attribute
         """
         content = {
-            'authors': None,
-            'year': None,
-            'product': None,
-            'institution': None,
-            'weblink': None,
+            "authors": None,
+            "year": None,
+            "product": None,
+            "institution": None,
+            "weblink": None,
         }
-        prefix = 'dataset_citation_'
+        prefix = "dataset_citation_"
         if ds is None:
             ds = self.dataset
 
@@ -304,7 +321,7 @@ class GetSmapMeta:
                 if val is not None:
                     return False
                 else:
-                    content[k] = ''
+                    content[k] = ""
             return True
 
         for key in content.keys():
@@ -313,11 +330,13 @@ class GetSmapMeta:
             except KeyError:
                 pass
         if is_empty():
-            ds.attrs[attr_name] = ''
+            ds.attrs[attr_name] = ""
         else:
-            version = 'Version 01.0. [NRT or FINAL].'
-            ds.attrs[attr_name] = f"{content['authors']}, {content['year']}: {content['product']}, {version}, " + \
-                                  f"{content['institution']}. {content['weblink']}"
+            version = "Version 01.0. [NRT or FINAL]."
+            ds.attrs[attr_name] = (
+                f"{content['authors']}, {content['year']}: {content['product']}, {version}, "
+                + f"{content['institution']}. {content['weblink']}"
+            )
         return ds
 
     @longitude_name.setter

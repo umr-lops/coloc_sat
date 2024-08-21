@@ -1054,7 +1054,7 @@ class ProductIntersection:
                 # if the acquisition is a truncated swath, the dataset (so the footprint) is already time selective
                 footprint = meta.footprint
             else:
-                if hasattr(meta, "footprint"):
+                if hasattr(meta, "footprint") and meta.footprint:
                     footprint = meta.footprint
                 else:
                     footprint = get_footprint_from_ll_ds(

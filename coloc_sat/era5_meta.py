@@ -3,7 +3,7 @@ from .tools import open_nc, correct_dataset, parse_date, common_var_names
 
 
 class GetEra5Meta:
-    def __init__(self, product_path, product_generation=False):
+    def __init__(self, product_path, product_generation=False, footprint=None):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self.product_generation = product_generation
@@ -12,6 +12,8 @@ class GetEra5Meta:
         # (see self.reformat_meta)
         self._longitude_name = None
         self._latitude_name = None
+        if footprint is not None:
+            self._footprint = footprint
 
         if self.product_generation:
             self._dataset = open_nc(product_path).load()
@@ -22,6 +24,11 @@ class GetEra5Meta:
                 self.dataset, lon_name=self.longitude_name_res(0.5)
             )
             self.reformat_meta()
+
+    @property
+    def footprint(self):
+        if hasattr(self, "_footprint"):
+            return self._footprint
 
     @property
     def start_date(self):
