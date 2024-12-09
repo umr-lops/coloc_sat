@@ -7,7 +7,7 @@ import rasterio.enums
 def main():
     resampling_methods = [method.name for method in rasterio.enums.Resampling]
 
-    parser = argparse.ArgumentParser(description="Generate co-locations between a specified product and a mission.")
+    parser = argparse.ArgumentParser(description="Generate co-locations between a specified product and a mission. Exit codes: 20 = no coloc found. 0 = OK. 1 = unknown error.")
 
     parser.add_argument("--product1-id", type=str, help="Path of the first product.")
     parser.add_argument("--destination-folder", default='/tmp', nargs='?', type=str, help="Folder path for the output.")
