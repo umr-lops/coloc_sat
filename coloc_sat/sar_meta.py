@@ -181,8 +181,12 @@ class GetSarMeta:
         """
         if "RS2" in self.product_name.upper():
             return "RADARSAT-2"
-        elif "RCM" in self.product_name.upper():
-            return "RADARSAT Constellation"
+        elif "RCM1" in self.product_name.upper():
+            return "RADARSAT Constellation 1"
+        elif "RCM2" in self.product_name.upper():
+            return "RADARSAT Constellation 2"
+        elif "RCM3" in self.product_name.upper():
+            return "RADARSAT Constellation 3"
         elif "S1A" in self.product_name.upper():
             return "SENTINEL-1 A"
         elif "S1B" in self.product_name.upper():
