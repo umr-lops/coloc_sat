@@ -267,7 +267,7 @@ def coloc_from_parquet(
         from dask.distributed import Client
 
         # Initiate Dask Client
-        client = Client(processes=True, n_workers=n_workers)
+        client = Client(processes=False, n_workers=n_workers)
         logger.info(f"Dashboard link: {client.dashboard_link}")
 
     ds1 = conf_data["dataset_name_1"]
