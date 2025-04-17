@@ -182,6 +182,17 @@ def process_parquet_coloc(
             with open(status_path, "w") as status_f:
                 status_f.write(str(status))
 
+
+# Create a custom process class that is not daemonic
+class NonDaemonProcess(multiprocessing.get_context("spawn").Process):
+    @property
+    def daemon(self):
+        return False
+    @daemon.setter
+    def daemon(self, value):
+        pass
+
+
 def run_process_parquet_coloc(*args, **kwargs):
     def target(q, *args, **kwargs):
         try:
@@ -190,20 +201,21 @@ def run_process_parquet_coloc(*args, **kwargs):
         except Exception as e:
             q.put(e)
 
-    import multiprocessing
-    ctx = multiprocessing.get_context("spawn")  # Use spawn context to avoid daemonic issues
+    ctx = multiprocessing.get_context("spawn")  # Using spawn context
     q = ctx.Queue()
-    p = ctx.Process(target=target, args=(q,) + args, kwargs=kwargs)
+
+    # Use our custom NonDaemonProcess instead of the default Process
+    p = NonDaemonProcess(target=target, args=(q,) + args, kwargs=kwargs)
     p.start()
     p.join()
     if p.exitcode not in (0, None):
         # Typically, segmentation fault results in exitcode 139 or -11 on Linux.
         if p.exitcode in (139, -11):
-            # Handle segmentation fault gracefully
             return f"Segmentation fault occurred (exit code {p.exitcode})"
         else:
             return f"Process failed with exit code {p.exitcode}"
     return q.get()
+
 
 def coloc_from_parquet(
     parquet: str,
