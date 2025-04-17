@@ -190,8 +190,10 @@ def run_process_parquet_coloc(*args, **kwargs):
         except Exception as e:
             q.put(e)
 
-    q = multiprocessing.Queue()
-    p = multiprocessing.Process(target=target, args=(q,)+args, kwargs=kwargs)
+    import multiprocessing
+    ctx = multiprocessing.get_context("spawn")  # Use spawn context to avoid daemonic issues
+    q = ctx.Queue()
+    p = ctx.Process(target=target, args=(q,) + args, kwargs=kwargs)
     p.start()
     p.join()
     if p.exitcode not in (0, None):
