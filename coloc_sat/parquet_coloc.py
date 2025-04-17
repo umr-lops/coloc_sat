@@ -16,6 +16,8 @@ from dask.distributed import Client
 from dask import delayed, compute
 import traceback
 from datetime import timedelta
+import multiprocessing
+
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +182,26 @@ def process_parquet_coloc(
             with open(status_path, "w") as status_f:
                 status_f.write(str(status))
 
+def run_process_parquet_coloc(*args, **kwargs):
+    def target(q, *args, **kwargs):
+        try:
+            result = process_parquet_coloc(*args, **kwargs)
+            q.put(result)
+        except Exception as e:
+            q.put(e)
+
+    q = multiprocessing.Queue()
+    p = multiprocessing.Process(target=target, args=(q,)+args, kwargs=kwargs)
+    p.start()
+    p.join()
+    if p.exitcode not in (0, None):
+        # Typically, segmentation fault results in exitcode 139 or -11 on Linux.
+        if p.exitcode in (139, -11):
+            # Handle segmentation fault gracefully
+            return f"Segmentation fault occurred (exit code {p.exitcode})"
+        else:
+            return f"Process failed with exit code {p.exitcode}"
+    return q.get()
 
 def coloc_from_parquet(
     parquet: str,
@@ -278,7 +300,7 @@ def coloc_from_parquet(
 
     if parallel or parallel_datarmor:
         tasks = [
-            delayed(process_parquet_coloc)(
+            delayed(run_process_parquet_coloc)(
                 row,
                 ds1,
                 ds2,
@@ -302,7 +324,7 @@ def coloc_from_parquet(
         results = compute(*tasks)
     else:
         for _, row in prq.iterrows():
-            status = process_parquet_coloc(
+            status = run_process_parquet_coloc(
                 row,
                 ds1,
                 ds2,
