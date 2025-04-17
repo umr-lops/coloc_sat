@@ -193,23 +193,22 @@ class NonDaemonProcess(multiprocessing.get_context("spawn").Process):
         pass
 
 
+# Module-level function (picklable) to be used as the process target.
+def process_target(q, *args, **kwargs):
+    try:
+        result = process_parquet_coloc(*args, **kwargs)
+        q.put(result)
+    except Exception as e:
+        q.put(e)
+
+
 def run_process_parquet_coloc(*args, **kwargs):
-    def target(q, *args, **kwargs):
-        try:
-            result = process_parquet_coloc(*args, **kwargs)
-            q.put(result)
-        except Exception as e:
-            q.put(e)
-
-    ctx = multiprocessing.get_context("spawn")  # Using spawn context
+    ctx = multiprocessing.get_context("spawn")
     q = ctx.Queue()
-
-    # Use our custom NonDaemonProcess instead of the default Process
-    p = NonDaemonProcess(target=target, args=(q,) + args, kwargs=kwargs)
+    p = ctx.Process(target=process_target, args=(q,) + args, kwargs=kwargs)
     p.start()
     p.join()
     if p.exitcode not in (0, None):
-        # Typically, segmentation fault results in exitcode 139 or -11 on Linux.
         if p.exitcode in (139, -11):
             return f"Segmentation fault occurred (exit code {p.exitcode})"
         else:
