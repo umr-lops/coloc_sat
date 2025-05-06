@@ -63,6 +63,8 @@ paths:
     - '/path2/to/SMOS//%Y/%(dayOfYear)/*%Y%m%d*.nc'
   HY2:
     - '/path/to/hy2/%Y/%(dayOfYear)/*%Y%m%d*.nc'
+  ASCAT:
+    - '/path/to/ascat/%Y/%(dayOfYear)/*%Y%m%d*.nc'
   ERA5:
     - '/path/to/era5/%Y/%m/era_5-copernicus__%Y%m%d.nc'
   RS2:

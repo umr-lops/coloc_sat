@@ -12,7 +12,7 @@ def extract_wind_speed(smos_dataset):
     return smos_dataset.where((np.isfinite(smos_dataset.wind_dir)), drop=True)
 
 
-class GetHy2Meta:
+class GetAscatMeta:
     def __init__(self, product_path, product_generation=False, footprint=None):
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
@@ -22,24 +22,10 @@ class GetHy2Meta:
         self._latitude_name = "lat"
         if footprint is not None:
             self._footprint = footprint
-        self._dataset = GetHy2Meta._open_nc(product_path).load()
+        self._dataset = GetAscatMeta._open_nc(product_path).load()
         self.dataset = correct_dataset(self._dataset, self.longitude_name)
 
     @staticmethod
-    # def _open_nc(product_path):
-    #     logger.debug(f"Opening {product_path}")
-    #     ds = xr.open_dataset(product_path, decode_cf=False)
-    #     # Convert all integer variables to float
-    #     for var in ds.data_vars:
-    #         if np.issubdtype(ds[var].dtype, np.integer):
-    #             ds[var] = ds[var].astype("float64")
-
-    #     ds = xr.decode_cf(ds)
-    #     ds["lon"].values = np.where(
-    #         ds["lon"].values > 180, ds["lon"].values - 360, ds["lon"].values
-    #     )
-
-    #     return ds
     def _open_nc(product_path):
         ds_scat = xr.open_dataset(product_path, decode_cf=False)
         for var in ds_scat.data_vars:
@@ -70,6 +56,7 @@ class GetHy2Meta:
             return self._footprint
         else:
             return None
+
 
     @property
     def start_date(self):
@@ -141,7 +128,7 @@ class GetHy2Meta:
         str
             Mission name
         """
-        return "Haiyang-2"
+        return "Advanced Scatterometer"
 
     @property
     def acquisition_type(self):

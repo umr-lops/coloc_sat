@@ -43,7 +43,7 @@ class GenerateColoc:
     -----------------
     - For the first option (comparison between a product and a whole dataset):
         ds_name : str | None
-            Name of the dataset to be compared. Choices can be 'S1', 'RS2', 'RCM', 'HY2', 'ERA5', 'WS', 'SMOS', 'SMAP'.
+            Name of the dataset to be compared. Choices can be 'S1', 'RS2', 'RCM', 'HY2', 'ASCAT', 'ERA5', 'WS', 'SMOS', 'SMAP'.
         input_ds : str | list[str] | None, optional
             Optional. Used if it is needed to compare with a subset of products. This subset can be a subset of product paths
             or a text file that contains the different paths. If not specified, the default value is None.
@@ -126,7 +126,7 @@ class GenerateColoc:
             self.product2 = None
         self.delta_time = delta_time
         self._minimal_area = minimal_area
-        self.resampling_method = kwargs.get("resampling_method", None)
+        self.resampling_method = kwargs.get("resampling_method", "nearest")
         self.delta_time_np = np.timedelta64(delta_time, "m")
         self.destination_folder = destination_folder
         self._listing_filename = kwargs.get("listing_filename", None)

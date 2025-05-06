@@ -41,10 +41,12 @@ class GetSarMeta:
             self._l2_info = self.open_format_l2(product_path)
 
     def open_format_l2(self, product_path):
+        ds = open_l2(product_path)
         if self.is_gridded:
-            return open_l2(product_path)
+            return ds
+        elif "sw" in product_path:
+            return ds
         else:
-            ds = open_l2(product_path)
             ds = ds.rename(
                 {"owiWindSpeed": "wind_speed", "owiLon": "lon", "owiLat": "lat"}
             )

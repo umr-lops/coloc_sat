@@ -500,7 +500,85 @@ class ProductIntersection:
             return verify_intersection(swath, footprint=fp)
 
     def intersection_truncated_swath_swath(self):
-        pass
+
+        def geographic_intersection(open_acquisition, polygon=None):
+            if open_acquisition.acquisition_type == "swath":
+                if polygon is None:
+                    return open_acquisition.dataset
+                else:
+                    lon_name = open_acquisition.longitude_name
+                    lat_name = open_acquisition.latitude_name
+
+                    ds_scat = open_acquisition.dataset
+                    # Find the scatterometer points that are within the sar swath bounding box
+                    min_lon, min_lat, max_lon, max_lat = polygon.bounds
+                    condition = (
+                        (ds_scat[lon_name] > min_lon)
+                        & (ds_scat[lon_name] < max_lon)
+                        & (ds_scat[lat_name] > min_lat)
+                        & (ds_scat[lat_name] < max_lat)
+                    )
+                    ds_scat_intersected = ds_scat.where(condition, drop=True)
+                    return ds_scat_intersected
+            else:
+                raise ValueError(
+                    "`geographic_intersection` only can be applied on daily regular grid acquisition"
+                )
+                
+        def spatial_temporal_intersection(open_acquisition, polygon=None):
+            if open_acquisition.acquisition_type == "swath":
+                dataset = geographic_intersection(open_acquisition, polygon)
+                dataset = extract_times_dataset(
+                    open_acquisition,
+                    dataset=dataset,
+                    start_date=self.start_date,
+                    stop_date=self.stop_date,
+                )
+                return dataset
+            else:
+                raise ValueError(
+                    "`spatial_temporal_intersection` only can be applied on daily regular grid acquisition"
+                )
+                
+        def verify_intersection(swath_acquisition, footprint):
+            # dataset where latitude and longitude are in the truncated swath footprint bounds,
+            # and where time criteria is respected
+            _ds = spatial_temporal_intersection(swath_acquisition, polygon=footprint)
+            if (_ds is not None) and (not are_dimensions_empty(_ds)):
+                """flatten_lon = _ds[swath_acquisition.longitude_name].data.flatten()
+                flatten_lat = _ds[swath_acquisition.latitude_name].data.flatten()
+                # Create a multipoint from swath lon/lat that are in the box and respect time criteria
+                mpt = MultiPoint([(lon, lat) for lon, lat in zip(flatten_lon, flatten_lat)
+                                  if (np.isfinite(lon) and np.isfinite(lat))])
+                # Verify if a part of this multipoint can be intersected with the truncated swath footprint
+                return mpt.intersects(footprint)"""
+                poly = get_footprint_from_ll_ds(swath_acquisition, _ds)
+                is_intersected = poly.intersects(footprint)
+                if is_intersected:
+                    self.fill_common_footprint(poly.intersection(footprint))
+                return self._is_considered_as_intersected
+            else:
+                return False
+            
+        if (self.meta1.acquisition_type == "truncated_swath") and (
+            self.meta2.acquisition_type == "swath"
+        ):
+            truncated = self.meta1
+            swath = self.meta2
+        elif (self.meta2.acquisition_type == "truncated_swath") and (
+            self.meta1.acquisition_type == "swath"
+        ):
+            truncated = self.meta2
+            swath = self.meta1
+        else:
+            raise ValueError(
+                "intersection_swath_truncated_swath only can be used with a swath \
+                                acquisition and a truncated one"
+            )
+            
+        # footprint of the truncated swath
+        fp = truncated.footprint
+        return verify_intersection(swath, footprint=fp)
 
     def intersection_drg_non_truncated_swath(self):
         """
@@ -777,7 +855,7 @@ class ProductIntersection:
         )
         for n in data_vars_1:
             colocated_data_1[n] = np.full(lon_reduced.shape, np.nan)
-
+        
         logger.info("Start pixel association...")
         if lon_1_delta > lon_2_delta:
             reprojected_dataset = "dataset2"
@@ -799,8 +877,8 @@ class ProductIntersection:
             colocated_data_2, colocated_data_1 = compute_colocated_data(
                 lon_2_reduced,
                 lat_2_reduced,
-                lon_1,
-                lat_1,
+                lon_1_reduced,
+                lat_1_reduced,
                 data_2_reduced,
                 data_1_reduced,
                 1,
@@ -814,13 +892,18 @@ class ProductIntersection:
             {var: (("y", "x"), colocated_data_1[var]) for var in colocated_data_1},
             coords={"lon": (("y", "x"), lon_reduced), "lat": (("y", "x"), lat_reduced)},
         )
-
         colocated_ds_2 = xr.Dataset(
             {var: (("y", "x"), colocated_data_2[var]) for var in colocated_data_2},
             coords={"lon": (("y", "x"), lon_reduced), "lat": (("y", "x"), lat_reduced)},
         )
+        
         logger.info("Done pixel association.")
-
+        if meta1.time_name not in colocated_ds_1.variables:
+            colocated_ds_1[meta1.time_name] = ds1[meta1.time_name].values
+            
+        if meta2.time_name not in colocated_ds_2.variables:
+            colocated_ds_2[meta2.time_name] = ds2[meta2.time_name].values
+            
         colocated_ds_1[meta1.time_name] = colocated_ds_1[meta1.time_name].astype(
             "datetime64[ns]"
         )
