@@ -26,42 +26,50 @@ class GetHy2Meta:
         self.dataset = correct_dataset(self._dataset, self.longitude_name)
 
     @staticmethod
-    # def _open_nc(product_path):
-    #     logger.debug(f"Opening {product_path}")
-    #     ds = xr.open_dataset(product_path, decode_cf=False)
-    #     # Convert all integer variables to float
-    #     for var in ds.data_vars:
-    #         if np.issubdtype(ds[var].dtype, np.integer):
-    #             ds[var] = ds[var].astype("float64")
-
-    #     ds = xr.decode_cf(ds)
-    #     ds["lon"].values = np.where(
-    #         ds["lon"].values > 180, ds["lon"].values - 360, ds["lon"].values
-    #     )
-
-    #     return ds
     def _open_nc(product_path):
         ds_scat = xr.open_dataset(product_path, decode_cf=False)
+
+        # Convert all integer-type data variables to float64
+        # This ensures compatibility with later numerical operations, interpolation, etc.
         for var in ds_scat.data_vars:
             if np.issubdtype(ds_scat[var].dtype, np.integer):
                 ds_scat[var] = ds_scat[var].astype("float64")
+
+        # Decode CF (Climate and Forecast) metadata after safe type conversion
         ds_scat = xr.decode_cf(ds_scat)
+
+        # Normalize longitude from [0, 360] to [-180, 180]
         ds_scat["lon"].values = np.where(
             ds_scat["lon"].values > 180, ds_scat["lon"].values - 360, ds_scat["lon"].values
         )
+
+        # Normalize latitude if needed (in case of corrupted lat > 90)
         ds_scat["lat"].values = np.where(
             ds_scat["lat"].values > 90, ds_scat["lat"].values - 90, ds_scat["lat"].values
         )
+
+        # Rename dimensions to more understandable names
         ds_scat = ds_scat.rename_dims({'NUMROWS': 'row', 'NUMCELLS': 'cell'})
+
+        # Explicitly mark lat/lon as coordinate variables
         ds_scat = ds_scat.set_coords(('lat', 'lon'))
-        ds_scat = ds_scat[
-            ['wind_dir', 'wind_speed', 'time']].load()
 
+        # Keep only relevant physical variables
+        ds_scat = ds_scat[['wind_dir', 'wind_speed', 'time']].load()
+
+        # Rename 'wind_dir' to 'wind_direction' with proper dimensions and metadata
         ds_scat['wind_direction'] = (('row', 'cell'), ds_scat['wind_dir'].data)
-        ds_scat['wind_direction'].attrs = {'long_name': 'wind direction', 'units': 'degree_true'}
+        ds_scat['wind_direction'].attrs = {
+            'long_name': 'wind direction',
+            'units': 'degree_true'
+        }
 
+        # Re-declare 'wind_speed' with proper shape and metadata
         ds_scat['wind_speed'] = (('row', 'cell'), ds_scat['wind_speed'].data)
-        ds_scat['wind_speed'].attrs = {'long_name': 'wind speed', 'units': 'degree_true'}
+        ds_scat['wind_speed'].attrs = {
+            'long_name': 'wind speed',
+            'units': 'degree_true'
+        }
         return ds_scat[['wind_direction', 'wind_speed', 'time']]
 
     @property
