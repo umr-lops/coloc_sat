@@ -3,7 +3,9 @@ paths:
     - '/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc'
     - '/home/ref-smoswind-public/data/v3.0/l3/data/nrt/%Y/%(dayOfYear)/*%Y%m%d*.nc'
   HY2:
-    - '/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2b/hscat/25km/data/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc'
+    - '/home/datawork-cersat-public/provider/knmi/satellite/l2b/hy-2?/hscat/25km/data/%Y/%(dayOfYear)/*%Y%m%d*.nc'
+  ASCAT:
+    - '/home/datawork-cersat-public/provider/knmi/satellite/l2b/metop-?/ascat/12.5km/data/%Y/%(dayOfYear)/*%Y%m%d*.nc'
   ERA5:
     - '/home/ref-ecmwf/ERA5/%Y/%m/era_5-copernicus__%Y%m%d.nc'
   RS2:

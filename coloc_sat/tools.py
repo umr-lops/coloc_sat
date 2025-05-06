@@ -80,6 +80,12 @@ def call_meta_class(file, product_generation=False, footprint=None):
         return GetHy2Meta(
             file, product_generation=product_generation, footprint=footprint
         )
+    elif basename.startswith("ASCAT"):
+        from .ascat_meta import GetAscatMeta
+
+        return GetAscatMeta(
+            file, product_generation=product_generation, footprint=footprint
+        )
     elif basename.startswith("ERA_5"):
         from .era5_meta import GetEra5Meta
 
@@ -134,7 +140,7 @@ def get_all_comparison_files(
     accuracy="day",
 ):
     """
-    Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5)
+    Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5, ASCAT)
 
     Parameters
     ----------
@@ -269,7 +275,7 @@ def get_all_comparison_files(
                 )
                 files += research_files(parsed_path)
         files = get_last_generation_files(files)
-    elif ds_name == "HY2":
+    elif ds_name == "HY2" or ds_name == "ASCAT":
         # get all netcdf files which contain the days in schemes
         for root_path in root_paths:
             for scheme in schemes:
@@ -283,8 +289,8 @@ def get_all_comparison_files(
         if (start_date is not None) and (stop_date is not None):
             # remove files for which hour doesn't correspond to the selected times
             for f in files.copy():
-                start_hy, stop_hy = extract_start_stop_dates_from_hy(f)
-                if (stop_hy < start_date) or (start_hy > stop_date):
+                start_time, stop_time = extract_start_stop_dates_from_hy(f) if ds_name == "HY2" else extract_start_stop_dates_from_ascat(f)
+                if (stop_time < start_date) or (start_time > stop_date):
                     files.remove(f)
     elif ds_name == "S1":
         for lvl in product_levels:
@@ -493,6 +499,12 @@ def date_schemes(start_date, stop_date, accuracy="day"):
 
 def extract_start_stop_dates_from_hy(product_path):
     ds = GetHy2Meta._open_nc(product_path)
+    unique_time = np.unique(ds.time)
+    return min(unique_time), max(unique_time)
+
+
+def extract_start_stop_dates_from_ascat(product_path):
+    ds = GetAscatMeta._open_nc(product_path)
     unique_time = np.unique(ds.time)
     return min(unique_time), max(unique_time)
 
@@ -755,7 +767,7 @@ def extract_name_from_meta_class(obj):
     Parameters
     ----------
     obj: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetSmapMeta | coloc_sat.GetHy2Meta |
-    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta
+    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta | coloc_sat.GetAscatMeta
         Meta object
 
     Returns
@@ -833,13 +845,13 @@ def reformat_meta(meta):
     Parameters
     ----------
     meta: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetSmapMeta | coloc_sat.GetHy2Meta |
-    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta
+    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta | coloc_sat.GetAscatMeta
         Meta object
 
     Returns
     -------
     coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetSmapMeta | coloc_sat.GetHy2Meta |
-    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta
+    coloc_sat.GetEra5Meta | coloc_sat.GetWindsatMeta | coloc_sat.GetAscatMeta
         Meta object reformatted
     """
     satellite_type = extract_name_from_meta_class(meta)
@@ -963,12 +975,14 @@ def compute_colocated_data(
     main_var_name_1,
     radius_km,
 ):
-
-    for i in prange(lon_1.shape[0]):
-        for j in prange(lon_1.shape[1]):
+    lon_1_rows, lon_1_cols = lon_1.shape
+    lon_2_rows, lon_2_cols = lon_2.shape
+    
+    for i in prange(lon_1_rows):
+        for j in prange(lon_1_cols):
             filtered_indices = []
-            for m in prange(lon_2.shape[0]):
-                for n in prange(lon_2.shape[1]):
+            for m in prange(lon_2_rows):
+                for n in prange(lon_2_cols):
                     dist = haversine(lat_1[i, j], lon_1[i, j], lat_2[m, n], lon_2[m, n])
                     if dist <= radius_km:
                         filtered_indices.append((m, n))
@@ -983,9 +997,10 @@ def compute_colocated_data(
                 colocated_data_1[coloc_1_var][i, j] = data_vars_1[coloc_1_var][i, j]
 
             for coloc_2_var in data_vars_2:
+                all_data = data_vars_2[coloc_2_var]
                 if not ref_nan:
                     filtered_data = np.array(
-                        [data_vars_2[coloc_2_var][m, n] for m, n in filtered_indices]
+                        [all_data[m, n] for m, n in filtered_indices]
                     )
                     mean_filtered_data = np.nanmean(filtered_data)
                     colocated_data_2[coloc_2_var][i, j] = mean_filtered_data
@@ -994,3 +1009,4 @@ def compute_colocated_data(
 
 
 from coloc_sat.hy2_meta import GetHy2Meta
+from coloc_sat.ascat_meta import GetAscatMeta

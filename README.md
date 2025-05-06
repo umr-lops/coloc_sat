@@ -11,7 +11,7 @@
 
 **coloc_sat** is a Python package for co-locating satellite data products. It allows you to co-locate data from different satellite sources based on provided paths and common variable names. This README provides an installation guide and instructions for usage.
 This package also allows co-location listings.
-Input satellites / missions that can be treated by this tool are the following : WindSat / SMOS / SMAP / SAR (L1/L2) / ERA5 / HY2. 
+Input satellites / missions that can be treated by this tool are the following : WindSat / SMOS / SMAP / SAR (L1/L2) / ERA5 / HY2 / ASCAT. 
 SAR satellites are RCM, RadarSat-2 and Sentinel1.
 
 ## Installation
@@ -63,6 +63,8 @@ paths:
     - '/path2/to/SMOS//%Y/%(dayOfYear)/*%Y%m%d*.nc'
   HY2:
     - '/path/to/hy2/%Y/%(dayOfYear)/*%Y%m%d*.nc'
+  ASCAT:
+    - '/path/to/ascat/%Y/%(dayOfYear)/*%Y%m%d*.nc'
   ERA5:
     - '/path/to/era5/%Y/%m/era_5-copernicus__%Y%m%d.nc'
   RS2:
@@ -200,6 +202,45 @@ Example of product name: `'sat_coloc_s1a-ew-owi-cm-20181009t142906-20181009t1431
         scatter_index:           nan
 ```
 
+🛈 When co-locating **swath-to-swath products** (e.g., SAR with ASCAT or SAR with HY2), the resulting co-located product is gridded on a **2D latitude/longitude grid**, where the lat/lon values vary along both dimensions. This is due to the geophysical swath shape of the instruments, which is preserved during the co-location process.
+
+```
+<xarray.Dataset> Size: 8kB
+  Dimensions:                      (y: 19, x: 2)
+  Coordinates:
+      lon                          (y, x) float64 304B ...
+      lat                          (y, x) float64 304B ...
+  Dimensions without coordinates: y, x
+  Data variables: (12/25)
+      wind_speed_1                 (y, x) float64 304B ...
+      wind_speed_co_1              (y, x) float64 304B ...
+      wind_speed_cross_1           (y, x) float64 304B ...
+      wind_from_direction_1        (y, x) float64 304B ...
+      wind_from_direction_co_1     (y, x) float64 304B ...
+      wind_from_direction_cross_1  (y, x) float64 304B ...
+      ...                           ...
+      owiMask_Nrcs_1               (y, x) float64 304B ...
+      owiMask_Nrcs_cross_1         (y, x) float64 304B ...
+      time_1                       (y, x) datetime64[ns] 304B ...
+      wind_direction_2             (y, x) float64 304B ...
+      wind_speed_2                 (y, x) float64 304B ...
+      time_2                       (y, x) datetime64[ns] 304B ...
+  Attributes: (12/18)
+      sourceProduct_1:         s1a-ew-owi-cm-20210924t210331-20210924t210556-00...
+      missionName_1:           SENTINEL-1 A
+      measurementStartDate_1:  2021-09-24T21:04:43.000000000
+      measurementStopDate_1:   2021-09-24T21:04:43.000000000
+      footprint_1:             POLYGON ((-44.47028963435961 6.859109024551801, ...
+      time_difference:         3577000000000 nanoseconds
+      ...                      ...
+      footprint_2:             POLYGON ((-42.67162999999999 14.30404, -42.67162...
+      counted_points:          22
+      vmax_m_s:                19.868717277486912
+      Bias:                    0.17677608494815503
+      Standard deviation:      0.5309783623632102
+      scatter_index:           6.406290982900541
+```
+
 ## Important notes
 This library is a Work-in-progress, so that some acquisition type combinations aren't treated yet:
 
@@ -207,8 +248,8 @@ This library is a Work-in-progress, so that some acquisition type combinations a
 |-------------------------|-------------------------|-------------------------|-------------------------|-------------------------|
 | **truncated_grid**      | listing=True,           | listing=True,           | listing=True,           | listing=True,           |
 |                         | product_generation=True | product_generation=False| product_generation=True | product_generation=True |
-| **swath**               | listing=True,           | listing=False,          | listing=False,          | listing=True,           |
-|                         | product_generation=False| product_generation=False| product_generation=False| product_generation=False|
+| **swath**               | listing=True,           | listing=True,          | listing=False,          | listing=True,           |
+|                         | product_generation=False| product_generation=True| product_generation=False| product_generation=False|
 | **daily_regular_grid**  | listing=True,           | listing=False,          | listing=False,          | listing=True,           |
 |                         | product_generation=True | product_generation=False| product_generation=False| product_generation=False|
 | **model**               | listing=True,           | listing=True,           | listing=True,           | listing=True,           |

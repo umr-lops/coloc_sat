@@ -108,7 +108,7 @@ def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=No
 
     Parameters
     ----------
-    acquisition: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetEra5Meta | coloc_sat.GetHy2Meta | coloc_sat.GetSmapMeta | coloc_sat.GetWindsatMeta
+    acquisition: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetEra5Meta | coloc_sat.GetHy2Meta | coloc_sat.GetSmapMeta | coloc_sat.GetWindsatMeta | coloc_sat.GetAscatMeta
         Meta acquisition.
     ds: xarray.Dataset
         Ds on which footprint can be extracted from longitude and latitude vars. If no one is given (value at None)
@@ -178,7 +178,7 @@ def remove_nat(meta, dataset=None):
 
     Parameters
     ----------
-    meta: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetEra5Meta | coloc_sat.GetHy2Meta | coloc_sat.GetSmapMeta | coloc_sat.GetWindsatMeta
+    meta: coloc_sat.GetSarMeta | coloc_sat.GetSmosMeta | coloc_sat.GetEra5Meta | coloc_sat.GetHy2Meta | coloc_sat.GetSmapMeta | coloc_sat.GetWindsatMeta | coloc_sat.GetAscatMeta
         Meta acquisition
     dataset: xarray.Dataset | None
         dataset from the acquisition on which the operation must be applied

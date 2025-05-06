@@ -189,7 +189,7 @@ class GetSmapMeta:
         Returns
         -------
         str
-            Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5)
+            Mission name (ex: SMOS, S1, RS2, RCM, SMAP, HY2, ERA5, ASCAT)
         """
         return "Soil Moisture Active Passive"
 
