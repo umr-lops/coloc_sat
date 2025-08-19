@@ -193,6 +193,10 @@ class GetSarMeta:
             return "SENTINEL-1 A"
         elif "S1B" in self.product_name.upper():
             return "SENTINEL-1 B"
+        elif "S1C" in self.product_name.upper():
+            return "SENTINEL-1 C"
+        elif "S1D" in self.product_name.upper():
+            return "SENTINEL-1 D"
         else:
             raise TypeError(
                 "Unrecognized satellite name from %s" % str(self.product_name)

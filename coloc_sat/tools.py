@@ -34,6 +34,7 @@ def load_config():
         config = yaml.safe_load(file)
     return config
 
+
 def set_config(config_path: str):
     global param_config
     global common_var_names
@@ -47,53 +48,67 @@ def get_acquisition_root_paths(ds_name):
     return paths_dict[ds_name]
 
 
-def call_meta_class(file, product_generation=False, footprint=None):
-    sar_satellites = ["RS2", "S1A", "S1B", "RCM1", "RCM2", "RCM3"]
+def _part(parts, i, default=None):
+    return parts[i] if i < len(parts) else default
+
+
+def call_meta_class(file, product_generation: bool = False, footprint=None):
+    SAR_SATELLITES = {"RS2", "S1A", "S1B", "S1C", "S1D", "RCM1", "RCM2", "RCM3"}
+    # keep prefix checks identical to your original behavior
     basename = os.path.basename(file).upper()
-    if basename.split("_")[0].split("-")[0] in sar_satellites:
+    stem = Path(file).stem.upper()
+    parts = stem.split("_")
+
+    # first token: split '_' then '-' only on that first token (matches your original)
+    first_token = parts[0].split("-", 1)[0]
+
+    if first_token in SAR_SATELLITES:
         from .sar_meta import GetSarMeta
 
         return GetSarMeta(
             file, product_generation=product_generation, footprint=footprint
         )
-    elif basename.startswith("SM_"):
+    
+    if basename.startswith("ASCAT"):
+        from .ascat_meta import GetAscatMeta
+        return GetAscatMeta(file, product_generation=product_generation, footprint=footprint)
+    
+
+    if basename.startswith("SM_"):
         from .smos_meta import GetSmosMeta
 
         return GetSmosMeta(
             file, product_generation=product_generation, footprint=footprint
         )
-    elif basename.startswith("WSAT_"):
+
+    if basename.startswith("WSAT_"):
         from .windsat_meta import GetWindSatMeta
 
         return GetWindSatMeta(
             file, product_generation=product_generation, footprint=footprint
         )
-    elif basename.split("_")[1] == "SMAP":
+
+    if _part(parts, 1) == "SMAP":  # safe: returns None when missing
         from .smap_meta import GetSmapMeta
 
         return GetSmapMeta(
             file, product_generation=product_generation, footprint=footprint
         )
-    elif basename.split("_")[3] == "HY":
+
+    if _part(parts, 3) == "HY":  # safe: returns None when missing
         from .hy2_meta import GetHy2Meta
 
         return GetHy2Meta(
             file, product_generation=product_generation, footprint=footprint
         )
-    elif basename.startswith("ASCAT"):
-        from .ascat_meta import GetAscatMeta
-
-        return GetAscatMeta(
-            file, product_generation=product_generation, footprint=footprint
-        )
-    elif basename.startswith("ERA_5"):
+    if basename.startswith("ERA_5"):
         from .era5_meta import GetEra5Meta
 
         return GetEra5Meta(
             file, product_generation=product_generation, footprint=footprint
         )
-    else:
-        raise ValueError(f"Can't recognize satellite type from product {basename}")
+
+    raise ValueError(f"Can't recognize satellite type from product {basename}")
 
 
 def check_file_match_pattern_date(s_to_check: str, pattern, start_date):
