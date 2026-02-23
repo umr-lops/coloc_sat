@@ -950,7 +950,9 @@ def filter_data_polygon(lon, lat, data_vars, polygon):
 
     filtered_indices = np.argwhere(mask)
     if filtered_indices.size == 0:
-        logger.warning("Filtering using polygon left no data.")
+        print(
+            "[filter_data_polygon] WARNING: Filtering using polygon left no data."
+        )  # Can't use logger in numba
         return data_vars, None, None
 
     # Get the minimum and maximum row and column indices
