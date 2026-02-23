@@ -68,11 +68,13 @@ def call_meta_class(file, product_generation: bool = False, footprint=None):
         return GetSarMeta(
             file, product_generation=product_generation, footprint=footprint
         )
-    
+
     if basename.startswith("ASCAT"):
         from .ascat_meta import GetAscatMeta
-        return GetAscatMeta(file, product_generation=product_generation, footprint=footprint)
-    
+
+        return GetAscatMeta(
+            file, product_generation=product_generation, footprint=footprint
+        )
 
     if basename.startswith("SM_"):
         from .smos_meta import GetSmosMeta
@@ -152,7 +154,7 @@ def get_all_comparison_files(
     ds_name="SMOS",
     input_ds=None,
     level=None,
-    accuracy="day",
+    accuracy="auto",
 ):
     """
     Return all existing product for a specific sensor (ex : SMOS, RS2, RCM, S1, HY2, ERA5, ASCAT)
@@ -175,7 +177,7 @@ def get_all_comparison_files(
         it a value when ds_name is something else then a SAR ('S1', 'RS2', 'RCM'). Values can be 1, 2 or None
         (default value).
     accuracy: str
-        Defines if searched files are found on a day, hour, minute or second accuracy level.
+        Defines if searched files are found on a day, hour, minute or second accuracy level. Default is "auto", which tries to guess accuracy based on selected dataset string.
 
     Returns
     -------
@@ -261,6 +263,22 @@ def get_all_comparison_files(
             return final_files
 
     map_levels = {1: "L1", 2: "L2"}
+
+    root_paths = get_acquisition_root_paths(ds_name)
+
+    if accuracy == "auto":
+        if "%S" in root_paths[0]:
+            accuracy = "second"
+            match_date_patt = "%Y%m%d%H%M%S"
+        elif "%M" in root_paths[0]:
+            accuracy = "minute"
+            match_date_patt = "%Y%m%d%H%M"
+        elif "%H" in root_paths[0]:
+            accuracy = "hour"
+            match_date_patt = "%Y%m%d%H"
+        else:
+            accuracy = "day"
+            match_date_patt = "%Y%m%d"
     if accuracy == "day":
         match_date_patt = "%Y%m%d"
     elif accuracy == "hour":
@@ -270,7 +288,6 @@ def get_all_comparison_files(
     elif accuracy == "second":
         match_date_patt = "%Y%m%d%H%M%S"
 
-    root_paths = get_acquisition_root_paths(ds_name)
     product_levels = []
     if level is not None:
         product_levels = [map_levels[level]]
@@ -300,11 +317,16 @@ def get_all_comparison_files(
                     datetime_obj=date,
                     day_of_year=schemes[scheme]["dayOfYear"],
                 )
+                logger.debug(f"Search matching files in path: {parsed_path}")
                 files += research_files(parsed_path)
         if (start_date is not None) and (stop_date is not None):
             # remove files for which hour doesn't correspond to the selected times
             for f in files.copy():
-                start_time, stop_time = extract_start_stop_dates_from_hy(f) if ds_name == "HY2" else extract_start_stop_dates_from_ascat(f)
+                start_time, stop_time = (
+                    extract_start_stop_dates_from_hy(f)
+                    if ds_name == "HY2"
+                    else extract_start_stop_dates_from_ascat(f)
+                )
                 if (stop_time < start_date) or (start_time > stop_date):
                     files.remove(f)
     elif ds_name == "S1":
@@ -563,9 +585,10 @@ def extract_start_stop_dates_from_sar(product_path):
     np.datetime64, np.datetime64
         Tuple that contains the start and the stop dates
     """
-    separators = {"L1": "_", "L2": "-"}
+    separators = {"L1": "_", "L2": "-", "L2P": "_"}
     # All level 2 products have a start and a stop date
     index_l2 = {"start": 4, "stop": 5}
+    index_l2p = {"start": 5, "stop": 6}
     # All S1 level 1 have a start and a stop date
     index_l1_sentinel = {"start": -5, "stop": -4}
     # All RCM and RS2 level 1 only have a start date, divided in a date (%Y%Y%Y%Y%M%M%D%D) and a time (%H%H%M%M%S%S)
@@ -573,7 +596,12 @@ def extract_start_stop_dates_from_sar(product_path):
     basename = os.path.basename(product_path)
     upper_basename = basename.upper()
     # level 2 products
-    if basename.endswith(".nc"):
+    if "_ocn__" in basename:  # L2P case
+        split_basename = upper_basename.split(separators["L2P"])
+        str_start_date = split_basename[index_l2p["start"]].replace("T", "")
+        str_stop_date = split_basename[index_l2p["stop"]].replace("T", "")
+        start, stop = parse_date(str_start_date), parse_date(str_stop_date)
+    elif basename.endswith(".nc"):
         split_basename = upper_basename.split(separators["L2"])
         str_start_date = split_basename[index_l2["start"]].replace("T", "")
         str_stop_date = split_basename[index_l2["stop"]].replace("T", "")
@@ -703,12 +731,18 @@ def get_l2_footprint(dataset):
         return convert_str_to_polygon(dataset.attrs["footprint"])
     else:
         footprint_dict = {}
-        for ll in ["owiLon", "owiLat"]:
+        if "owiLon" in dataset.variables and "owiLat" in dataset.variables:
+            lon_var = "owiLon"
+            lat_var = "owiLat"
+        else:
+            lon_var = "lon"
+            lat_var = "lat"
+        for ll in [lon_var, lat_var]:
             footprint_dict[ll] = [
                 dataset[ll].isel(owiAzSize=a, owiRaSize=x).values
                 for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
             ]
-        corners = list(zip(footprint_dict["owiLon"], footprint_dict["owiLat"]))
+        corners = list(zip(footprint_dict[lon_var], footprint_dict[lat_var]))
         return Polygon(corners)
 
 
@@ -916,7 +950,7 @@ def filter_data_polygon(lon, lat, data_vars, polygon):
 
     filtered_indices = np.argwhere(mask)
     if filtered_indices.size == 0:
-        print("Filtering using polygon left no data.")
+        logger.warning("Filtering using polygon left no data.")
         return data_vars, None, None
 
     # Get the minimum and maximum row and column indices
@@ -992,7 +1026,7 @@ def compute_colocated_data(
 ):
     lon_1_rows, lon_1_cols = lon_1.shape
     lon_2_rows, lon_2_cols = lon_2.shape
-    
+
     for i in prange(lon_1_rows):
         for j in prange(lon_1_cols):
             filtered_indices = []
