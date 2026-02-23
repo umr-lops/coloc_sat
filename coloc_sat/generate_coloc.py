@@ -312,6 +312,11 @@ class GenerateColoc:
             )
             if self.product1_id in all_comparison_files:
                 all_comparison_files.remove(self.product1_id)
+            logger.debug(
+                f"Found {len(all_comparison_files)} file candidates for coloc based on dates in filenames."
+            )
+            str_allcomp_files = "\n".join(all_comparison_files)
+            logger.debug(f"File list : {str_allcomp_files}")
             return all_comparison_files
 
     def fill_intersections(self):
@@ -343,6 +348,10 @@ class GenerateColoc:
             except FileNotFoundError:
                 pass
         if len(list(_intersections.keys())) > 0:
+            logger.debug(f"Found {len(list(_intersections.keys()))} intersections.")
+            logger.debug(
+                f"Found intersections for file(s): {', '.join(list(_intersections.keys()))}"
+            )
             self.intersections = _intersections
 
     def fill_colocated_files(self):
