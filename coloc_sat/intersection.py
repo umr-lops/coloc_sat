@@ -524,7 +524,7 @@ class ProductIntersection:
                 raise ValueError(
                     "`geographic_intersection` only can be applied on daily regular grid acquisition"
                 )
-                
+
         def spatial_temporal_intersection(open_acquisition, polygon=None):
             if open_acquisition.acquisition_type == "swath":
                 dataset = geographic_intersection(open_acquisition, polygon)
@@ -539,7 +539,7 @@ class ProductIntersection:
                 raise ValueError(
                     "`spatial_temporal_intersection` only can be applied on daily regular grid acquisition"
                 )
-                
+
         def verify_intersection(swath_acquisition, footprint):
             # dataset where latitude and longitude are in the truncated swath footprint bounds,
             # and where time criteria is respected
@@ -559,7 +559,7 @@ class ProductIntersection:
                 return self._is_considered_as_intersected
             else:
                 return False
-            
+
         if (self.meta1.acquisition_type == "truncated_swath") and (
             self.meta2.acquisition_type == "swath"
         ):
@@ -575,7 +575,7 @@ class ProductIntersection:
                 "intersection_swath_truncated_swath only can be used with a swath \
                                 acquisition and a truncated one"
             )
-            
+
         # footprint of the truncated swath
         fp = truncated.footprint
         return verify_intersection(swath, footprint=fp)
@@ -855,7 +855,7 @@ class ProductIntersection:
         )
         for n in data_vars_1:
             colocated_data_1[n] = np.full(lon_reduced.shape, np.nan)
-        
+
         logger.info("Start pixel association...")
         if lon_1_delta > lon_2_delta:
             reprojected_dataset = "dataset2"
@@ -896,14 +896,14 @@ class ProductIntersection:
             {var: (("y", "x"), colocated_data_2[var]) for var in colocated_data_2},
             coords={"lon": (("y", "x"), lon_reduced), "lat": (("y", "x"), lat_reduced)},
         )
-        
+
         logger.info("Done pixel association.")
         if meta1.time_name not in colocated_ds_1.variables:
             colocated_ds_1[meta1.time_name] = ds1[meta1.time_name].values
-            
+
         if meta2.time_name not in colocated_ds_2.variables:
             colocated_ds_2[meta2.time_name] = ds2[meta2.time_name].values
-            
+
         colocated_ds_1[meta1.time_name] = colocated_ds_1[meta1.time_name].astype(
             "datetime64[ns]"
         )
@@ -1237,7 +1237,10 @@ class ProductIntersection:
             # Determine informations analysis for the wind speed
             dict_ws_analysis = {
                 "counted_points": counted_points,
-                "vmax_m_s": sum_wind_speed.max().item(),
+                "vmax_m_s": max(
+                    dataset1["wind_speed_1"].max().item(),
+                    dataset2["wind_speed_2"].max().item(),
+                ),
             }
             if counted_points > 5:
                 # Determine the bias  # (m/s)
