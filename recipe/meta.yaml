@@ -29,6 +29,7 @@ requirements:
     - xsar >=2023.8
     - xradarsat2
     - xarray-safe-s1
+    - xarray<2025.12,>=2024.7.0 # for rioxarray
     - numpy
     - xarray
     - shapely
