@@ -266,19 +266,35 @@ def get_all_comparison_files(
 
     root_paths = get_acquisition_root_paths(ds_name)
 
+    product_levels = []
+    if level is not None:
+        product_levels = [map_levels[level]]
+    elif (ds_name == "S1") or (ds_name == "RS2") or (ds_name == "RCM"):
+        product_levels = list(root_paths.keys())
+
     if accuracy == "auto":
-        if "%S" in root_paths[0]:
+        # Handle both dict (SAR) and list (other satellites) structures
+        if isinstance(root_paths, dict):
+            # For SAR satellites, get first path from first level
+            first_level_paths = next(iter(root_paths.values()))
+            sample_path = first_level_paths[0] if first_level_paths else ""
+        else:
+            # For other satellites, get first path from list
+            sample_path = root_paths[0] if root_paths else ""
+
+        if "%S" in sample_path:
             accuracy = "second"
             match_date_patt = "%Y%m%d%H%M%S"
-        elif "%M" in root_paths[0]:
+        elif "%M" in sample_path:
             accuracy = "minute"
             match_date_patt = "%Y%m%d%H%M"
-        elif "%H" in root_paths[0]:
+        elif "%H" in sample_path:
             accuracy = "hour"
             match_date_patt = "%Y%m%d%H"
         else:
             accuracy = "day"
             match_date_patt = "%Y%m%d"
+
     if accuracy == "day":
         match_date_patt = "%Y%m%d"
     elif accuracy == "hour":
@@ -288,11 +304,6 @@ def get_all_comparison_files(
     elif accuracy == "second":
         match_date_patt = "%Y%m%d%H%M%S"
 
-    product_levels = []
-    if level is not None:
-        product_levels = [map_levels[level]]
-    elif (ds_name == "S1") or (ds_name == "RS2") or (ds_name == "RCM"):
-        product_levels = list(root_paths.keys())
     files = []
     schemes = date_schemes(start_date, stop_date, accuracy=accuracy)
     if ds_name == "SMOS":
