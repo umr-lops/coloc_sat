@@ -29,10 +29,23 @@ def get_config_path():
         raise ValueError("Config is not defined")
 
 
+_cached_config = None
+
+
 def load_config():
+    global _cached_config
+    if _cached_config is not None:
+        return _cached_config
+
     with open(get_config_path(), "r") as file:
         config = yaml.safe_load(file)
+    _cached_config = config
     return config
+
+
+def edit_config(new_config: dict):
+    global _cached_config
+    _cached_config = new_config
 
 
 def set_config(config_path: str):
