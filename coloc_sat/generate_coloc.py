@@ -104,14 +104,14 @@ class GenerateColoc:
         if mission_products_folder is not None:
             if config_data["paths"] is None:
                 config_data["paths"] = {}
-            config_data["paths"][self.ds_name] = mission_products_folder
+            config_data["paths"][self.ds_name] = [mission_products_folder]
 
         mission_l2_products_folder = kwargs.get("mission_l2_products_folder", None)
         if mission_l2_products_folder is not None:
             config_data["paths"] = config_data.get("paths") or {}
-            config_data["paths"].setdefault(self.ds_name, {})[
-                "L2"
-            ] = mission_l2_products_folder
+            config_data["paths"].setdefault(self.ds_name, {})["L2"] = [
+                mission_l2_products_folder
+            ]
 
         # Edit the config with the new paths if they are given as arguments.
         edit_config(config_data)
