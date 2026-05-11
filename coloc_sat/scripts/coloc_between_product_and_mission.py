@@ -44,13 +44,13 @@ def main():
         "--mission-products-folder",
         nargs="?",
         type=str,
-        help="Optional folder path where to search for the mission products. If not provided, the script will use the value specified in the config file. Format example: /path/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc",
+        help="Optional folder path where to search for the mission products. If not provided, the script will use the value specified in the config file. Format example: /path/%%Y/%%(dayOfYear)/*%%Y%%m%%d_%%H%%M*.nc",
     )
     parser.add_argument(
         "--mission-l2-products-folder",
         nargs="?",
         type=str,
-        help="Optional folder path where to search for the mission L2 products. If not provided, the script will use the value specified in the config file. Format example: /path/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc",
+        help="Optional folder path where to search for the mission L2 products. If not provided, the script will use the value specified in the config file. Format example: /path/%%Y/%%(dayOfYear)/*%%Y%%m%%d_%%H%%M*.nc",
     )
     parser.add_argument(
         "--input-ds",
