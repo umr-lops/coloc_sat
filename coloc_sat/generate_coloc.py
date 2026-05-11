@@ -5,6 +5,8 @@ from .tools import (
     get_all_comparison_files,
     extract_name_from_meta_class,
     set_config,
+    edit_config,
+    load_config,
 )
 from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
@@ -68,6 +70,10 @@ class GenerateColoc:
     config : str | None, optional
         Path to configuration file to use. If not provided, the one located in ~/coloc_sat/localconfig.yaml will
         be used if it exists, else the config.yml of this package is used.
+    mission_products_folder : str | None, optional
+        Optional folder path where to search for the mission products. If not provided, the script will use the value specified in the config file. Format example: /path/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc
+    mission_l2_products_folder : str | None, optional
+        Optional folder path where to search for the mission L2 products. If not provided, the script will use the value specified in the config file. Format example: /path/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc
     """
 
     def __init__(
@@ -83,10 +89,33 @@ class GenerateColoc:
         config_path = kwargs.get("config", None)
         if config_path is not None:
             set_config(config_path)
+
         # Define descriptive attributes
         self.level = kwargs.get("level", None)
         self.ds_name = kwargs.get("ds_name", None)
         self.input_ds = kwargs.get("input_ds", None)
+
+        # Load config, to add overrides given as input args.
+        config_data = load_config()
+
+        # Add the mission products folder to the config if it is given as an argument.
+        # It will be used in the function `get_all_comparison_files` to search for the products to compare with.
+        mission_products_folder = kwargs.get("mission_products_folder", None)
+        if mission_products_folder is not None:
+            if config_data["paths"] is None:
+                config_data["paths"] = {}
+            config_data["paths"][self.ds_name] = [mission_products_folder]
+
+        mission_l2_products_folder = kwargs.get("mission_l2_products_folder", None)
+        if mission_l2_products_folder is not None:
+            config_data["paths"] = config_data.get("paths") or {}
+            config_data["paths"].setdefault(self.ds_name, {})["L2"] = [
+                mission_l2_products_folder
+            ]
+
+        # Edit the config with the new paths if they are given as arguments.
+        edit_config(config_data)
+
         self._product_generation = product_generation
         self._listing = listing
         self.product1_id = product1_id
