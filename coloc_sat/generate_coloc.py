@@ -339,8 +339,12 @@ class GenerateColoc:
                 input_ds=self.input_ds,
                 level=self.level,
             )
-            if self.product1_id in all_comparison_files:
-                all_comparison_files.remove(self.product1_id)
+            product1_path = os.path.realpath(os.path.abspath(self.product1_id))
+            all_comparison_files = [
+                comparison_file
+                for comparison_file in all_comparison_files
+                if os.path.realpath(os.path.abspath(comparison_file)) != product1_path
+            ]
             logger.debug(
                 f"Found {len(all_comparison_files)} file candidates for coloc based on dates in filenames."
             )
