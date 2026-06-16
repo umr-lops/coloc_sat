@@ -57,6 +57,16 @@ class GetSarMeta:
                 attrs={"long_name": "time", "standard_name": "time"},
             )
             ds = ds.set_coords(["lon", "lat"])
+
+            # Keep only variables having owiAzSize and owiRaSize dimensions only
+            ds = ds.drop_vars(
+                [
+                    var
+                    for var in ds.data_vars
+                    if set(ds[var].dims) != {"owiAzSize", "owiRaSize"}
+                ]
+            )
+
             return ds
 
     def fill_submeta(self):
