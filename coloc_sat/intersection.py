@@ -644,7 +644,7 @@ class ProductIntersection:
             dataset2 = self._datasets[self.meta2.product_name]
         else:
             dataset2 = self.meta2.dataset
-        logger.info("meta1 dataset opened.")
+        logger.info("meta2 dataset opened.")
 
         # alias to metaobjects
         meta1 = self.meta1
@@ -752,6 +752,19 @@ class ProductIntersection:
             Two first values of the dictionary are resampled datasets from meta1 and meta 2.  Last value is a string
             that precise which dataset of both has been reprojected.
         """
+
+        def _check_reduced_shapes(tag, lon_red, lat_red, data_red):
+            if lon_red.shape != lat_red.shape:
+                raise ValueError(
+                    f"{tag}: lon/lat shape mismatch: {lon_red.shape} vs {lat_red.shape}"
+                )
+            for var_name in data_red:
+                if data_red[var_name].shape != lon_red.shape:
+                    raise ValueError(
+                        f"{tag}: variable '{var_name}' shape {data_red[var_name].shape} "
+                        f"does not match lon/lat shape {lon_red.shape}"
+                    )
+
         # FIXME this should be a parameter
         radius_km = 25 * np.sqrt(2) / 2
 
@@ -768,13 +781,15 @@ class ProductIntersection:
             dataset2 = self._datasets[self.meta2.product_name]
         else:
             dataset2 = self.meta2.dataset
-        logger.info("meta1 dataset opened.")
+        logger.info("meta2 dataset opened.")
 
         # alias to metaobjects
         meta1 = self.meta1
         meta2 = self.meta2
 
         dataset1, dataset2 = get_nearest_time_datasets(meta1, dataset1, meta2, dataset2)
+
+        logger.info("Done selecting datasets with nearest time criteria.")
 
         # security to be sure that there is not orbit in the datasets dimensions
         ds1 = remove_nat(meta1, dataset1)
@@ -856,14 +871,29 @@ class ProductIntersection:
         for n in data_vars_1:
             colocated_data_1[n] = np.full(lon_reduced.shape, np.nan)
 
+        _check_reduced_shapes(
+            "dataset1 reduced", lon_1_reduced, lat_1_reduced, data_1_reduced
+        )
+        _check_reduced_shapes(
+            "dataset2 reduced", lon_2_reduced, lat_2_reduced, data_2_reduced
+        )
+
+        if lon_reduced.shape != colocated_data_1[next(iter(colocated_data_1))].shape:
+            raise ValueError("colocated_data_1 shape is inconsistent with lon_reduced")
+        if lon_reduced.shape != colocated_data_2[next(iter(colocated_data_2))].shape:
+            raise ValueError("colocated_data_2 shape is inconsistent with lon_reduced")
+
+        logger.info(f"The following variables from dataset 1 will be colocated: {list(data_1_reduced.keys())}")
+        logger.info(f"The following variables from dataset 2 will be colocated: {list(data_2_reduced.keys())}")
+
         logger.info("Start pixel association...")
         if lon_1_delta > lon_2_delta:
             reprojected_dataset = "dataset2"
             colocated_data_1, colocated_data_2 = compute_colocated_data(
                 lon_1_reduced,
                 lat_1_reduced,
-                lon_2,
-                lat_2,
+                lon_2_reduced,
+                lat_2_reduced,
                 data_1_reduced,
                 data_2_reduced,
                 1,
