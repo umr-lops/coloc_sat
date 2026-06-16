@@ -39,8 +39,10 @@ def extract_times_dataset(acquisition, dataset=None, start_date=None, stop_date=
     if stop_date is None:
         stop_date = acquisition.stop_date
     time_name = acquisition.time_name
-    return dataset.where((dataset[time_name] >= start_date) &
-                         (dataset[time_name] <= stop_date), drop=True)
+    return dataset.where(
+        (dataset[time_name] >= start_date) & (dataset[time_name] <= stop_date),
+        drop=True,
+    )
 
 
 def are_dimensions_empty(dataset):
@@ -88,12 +90,16 @@ def get_polygon_area_in_km_squared(polygon):
         area_in_square_meters = projected_polygon.area
 
     elif isinstance(polygon, MultiPolygon):
-        area_in_square_meters = sum(Polygon(proj.itransform(p.exterior.coords)).area for p in polygon.geoms)
+        area_in_square_meters = sum(
+            Polygon(proj.itransform(p.exterior.coords)).area for p in polygon.geoms
+        )
     elif isinstance(polygon, LineString) or isinstance(polygon, Point):
         return 0.0
 
     else:
-        raise ValueError(f"Area from type {type(polygon)} can't be computed. Polygon is : {polygon}")
+        raise ValueError(
+            f"Area from type {type(polygon)} can't be computed. Polygon is : {polygon}"
+        )
 
     # Convert the area from square meters to square kilometers
     area_in_square_km = area_in_square_meters / 1e6
@@ -126,11 +132,16 @@ def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=No
     if ds is None:
         ds = acquisition.dataset
     if (start_date is not None) or (stop_date is not None):
-        ds = extract_times_dataset(acquisition, dataset=ds, start_date=start_date, stop_date=stop_date)
+        ds = extract_times_dataset(
+            acquisition, dataset=ds, start_date=start_date, stop_date=stop_date
+        )
     flatten_lon = ds[acquisition.longitude_name].data.flatten()
     flatten_lat = ds[acquisition.latitude_name].data.flatten()
-    mpt_coords = [(lon, lat) for lon, lat in product(flatten_lon, flatten_lat) if not (math.isnan(lon) or
-                                                                                       math.isnan(lat))]
+    mpt_coords = [
+        (lon, lat)
+        for lon, lat in product(flatten_lon, flatten_lat)
+        if not (math.isnan(lon) or math.isnan(lat))
+    ]
     return MultiPoint(mpt_coords).convex_hull
 
 
@@ -138,14 +149,22 @@ def get_transform(ds, lon_name, lat_name):
     pixel_spacing_lon = ds.coords[lon_name][1] - ds.coords[lon_name][0]
     pixel_spacing_lat = ds.coords[lat_name][1] - ds.coords[lat_name][0]
 
-    transform = Affine(pixel_spacing_lon, 0.0, ds.coords[lon_name][0].values,
-                       0.0, pixel_spacing_lat, ds.coords[lat_name][0].values)
+    transform = Affine(
+        pixel_spacing_lon,
+        0.0,
+        ds.coords[lon_name][0].values,
+        0.0,
+        pixel_spacing_lat,
+        ds.coords[lat_name][0].values,
+    )
     return transform
 
 
 def get_common_points(dataset1, dataset2):
     # Obtenir les noms des variables présentes dans les deux datasets
-    common_variable_names = set(dataset1.data_vars.keys()) & set(dataset2.data_vars.keys())
+    common_variable_names = set(dataset1.data_vars.keys()) & set(
+        dataset2.data_vars.keys()
+    )
 
     # Créer un masque pour chaque variable ayant le même nom dans les deux datasets
     for variable_name in common_variable_names:
@@ -161,14 +180,33 @@ def get_common_points(dataset1, dataset2):
 
 
 def get_nearest_time_datasets(meta1, dataset1, meta2, dataset2):
-    if (extract_name_from_meta_class(meta1) == 'Era5') or (extract_name_from_meta_class(meta2) == 'Era5'):
+    if (extract_name_from_meta_class(meta1) == "Era5") or (
+        extract_name_from_meta_class(meta2) == "Era5"
+    ):
         if len(dataset1.time) > 1 and len(dataset2.time == 1):
-            nearest_time = min(dataset1.time.data, key=lambda x: abs(x - dataset2.time.data[0]))
+            nearest_time = min(
+                dataset1.time.data, key=lambda x: abs(x - dataset2.time.data[0])
+            )
             dataset1 = dataset1.sel(time=nearest_time).squeeze()
         elif len(dataset2.time) > 1 and len(dataset1.time == 1):
-            nearest_time = min(dataset2.time.data, key=lambda x: abs(x - dataset1.time.data[0]))
+            nearest_time = min(
+                dataset2.time.data, key=lambda x: abs(x - dataset1.time.data[0])
+            )
             dataset2 = dataset2.sel(time=nearest_time).squeeze()
     return dataset1, dataset2
+
+
+def drop_invalid_time_values(dataset, time_name):
+    time = dataset[time_name]
+    finite_mask = np.isfinite(time)
+
+    if finite_mask.all().item():
+        return dataset.squeeze()
+
+    if time.ndim == 1:
+        return dataset.isel({time.dims[0]: finite_mask}).squeeze()
+
+    return dataset.where(finite_mask, drop=True).squeeze()
 
 
 def remove_nat(meta, dataset=None):
@@ -195,6 +233,7 @@ def remove_nat(meta, dataset=None):
     """
     if dataset is None:
         dataset = meta.dataset
+        
     dataset = dataset.where(np.isfinite(dataset[meta.time_name]), drop=True).squeeze()
     if meta.has_orbited_segmentation:
         dimension_to_check = meta.orbit_segment_name
