@@ -183,12 +183,12 @@ def get_nearest_time_datasets(meta1, dataset1, meta2, dataset2):
     if (extract_name_from_meta_class(meta1) == "Era5") or (
         extract_name_from_meta_class(meta2) == "Era5"
     ):
-        if len(dataset1.time) > 1 and len(dataset2.time == 1):
+        if len(dataset1.time) > 1 and len(dataset2.time) == 1:
             nearest_time = min(
                 dataset1.time.data, key=lambda x: abs(x - dataset2.time.data[0])
             )
             dataset1 = dataset1.sel(time=nearest_time).squeeze()
-        elif len(dataset2.time) > 1 and len(dataset1.time == 1):
+        elif len(dataset2.time) > 1 and len(dataset1.time) == 1:
             nearest_time = min(
                 dataset2.time.data, key=lambda x: abs(x - dataset1.time.data[0])
             )
@@ -233,7 +233,7 @@ def remove_nat(meta, dataset=None):
     """
     if dataset is None:
         dataset = meta.dataset
-        
+
     dataset = dataset.where(np.isfinite(dataset[meta.time_name]), drop=True).squeeze()
     if meta.has_orbited_segmentation:
         dimension_to_check = meta.orbit_segment_name
