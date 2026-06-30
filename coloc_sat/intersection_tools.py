@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
 import numpy as np
 import pyproj
 from shapely import MultiPolygon
@@ -136,6 +140,8 @@ def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=No
             acquisition, dataset=ds, start_date=start_date, stop_date=stop_date
         )
     flatten_lon = ds[acquisition.longitude_name].data.flatten()
+    logger.debug(f"[get_footprint_from_ll_ds] dataset lon range: {ds[acquisition.longitude_name].min().values} to {ds[acquisition.longitude_name].max().values}")
+
     flatten_lat = ds[acquisition.latitude_name].data.flatten()
     mpt_coords = [
         (lon, lat)
@@ -158,13 +164,15 @@ def get_transform(ds, lon_name, lat_name):
     pixel_spacing_lon = ds.coords[lon_name][1] - ds.coords[lon_name][0]
     pixel_spacing_lat = ds.coords[lat_name][1] - ds.coords[lat_name][0]
 
+    # Rasterio's Affine origin is the upper-left corner of pixel 0, not its centre.
+    # xarray stores cell centres, so shift by half a pixel in each direction.
     transform = Affine(
         pixel_spacing_lon,
         0.0,
-        ds.coords[lon_name][0].values,
+        ds.coords[lon_name][0].values - float(pixel_spacing_lon) / 2,
         0.0,
         pixel_spacing_lat,
-        ds.coords[lat_name][0].values,
+        ds.coords[lat_name][0].values - float(pixel_spacing_lat) / 2,
     )
     return transform
 

@@ -18,6 +18,7 @@ import re
 from numba import njit, prange
 from numba.typed import Dict
 from numba.core import types
+import pandas as pd
 
 param_config = None
 
@@ -439,9 +440,9 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
 
     Parameters
     ----------
-    start_date: numpy.datetime64
+    start_date: pandas.Timestamp
         Start date for the research of era 5 files
-    stop_date: numpy.datetime64
+    stop_date: pandas.Timestamp
         End date for the research of era 5 files
     resource: str
         resource string, with strftime template
@@ -454,15 +455,15 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
         Concerned ERA5 files
     """
     files = []
-    date = start_date.astype("datetime64[ns]")
+    date = start_date
     while date < stop_date:
-        datetime_date = datetime.utcfromtimestamp(date.astype(int) * 1e-9)
+        datetime_date = datetime.utcfromtimestamp(date.value * 1e-9)
         closest_date, filename = resource_strftime(
             resource, step=step, date=datetime_date
         )
         if filename not in files:
             files.append(filename)
-        date += np.timedelta64(step, "m")
+        date += pd.Timedelta(minutes=step)
     return files
 
 

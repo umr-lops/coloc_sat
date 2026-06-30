@@ -300,13 +300,14 @@ class ProductIntersection:
                     len(open_acquisition.dataset[lon_name]),
                 ]
                 transform = rasterio.Affine.translation(
-                    min_bounds[0], min_bounds[1]
+                    float(min_bounds[0]) - float(lon_res) / 2,
+                    float(min_bounds[1]) - float(lat_res) / 2,
                 ) * rasterio.Affine.scale(lon_res, lat_res)
 
                 logger.debug(f"[rasterize_polygon] rasterizing polygon {polygon.bounds} with transform {transform} and out_shape {out_shape}")
 
                 return rasterio.features.rasterize(
-                    shapes=[polygon], out_shape=out_shape, transform=transform
+                    shapes=[polygon], out_shape=out_shape, transform=transform, all_touched=True
                 )
             else:
                 raise ValueError(
@@ -324,6 +325,7 @@ class ProductIntersection:
                     rasterized = rasterize_polygon(open_acquisition, polygon)
                     windspd_count = open_acquisition.dataset[open_acquisition.wind_name].count().item()
                     logger.debug(f"[rasterize_polygon] wind_speed points before rasterization: {windspd_count}")
+                    logger.debug(f"[rasterize_polygon] daily grid lon range before rasterize: {open_acquisition.dataset[lon_name].min().values} to {open_acquisition.dataset[lon_name].max().values}")
                     dataset = open_acquisition.dataset.where(rasterized)
 
                     logger.debug(f"[geographic_intersection] dataset after rasterization has shape {dataset.dims}")
@@ -335,6 +337,8 @@ class ProductIntersection:
 
                     windspd_count_after = dataset[open_acquisition.wind_name].count().item()
                     logger.debug(f"[rasterize_polygon] wind_speed points after dropping NaNs: {windspd_count_after}")
+                    
+                    logger.debug(f"[rasterize_polygon] daily grid lon range after rasterize: {dataset[lon_name].min().values} to {dataset[lon_name].max().values}")
 
                     return dataset
             else:
@@ -1291,10 +1295,10 @@ class ProductIntersection:
         product_name2 = self.meta2.product_name
         dataset2 = self.common_zone_datasets[product_name2]
 
-        wpsd1 = dataset1["wind_speed"].count().item()
-        wpsd2 = dataset2["wind"].count().item()
-        logger.debug(f"[format_datasets] common zone {self.common_footprint}")
-        logger.debug(f"[format_datasets] counts wpsd1: {wpsd1}, wpsd2: {wpsd2}")
+        #wpsd1 = dataset1["wind_speed"].count().item()
+        #wpsd2 = dataset2["wind"].count().item()
+        #logger.debug(f"[format_datasets] common zone {self.common_footprint}")
+        #logger.debug(f"[format_datasets] counts wpsd1: {wpsd1}, wpsd2: {wpsd2}")
 
         # can't format datasets and create co-location product if dimensions are empty
         if are_dimensions_empty(dataset1) or are_dimensions_empty(dataset2):
