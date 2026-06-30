@@ -142,6 +142,15 @@ def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=No
         for lon, lat in product(flatten_lon, flatten_lat)
         if not (math.isnan(lon) or math.isnan(lat))
     ]
+    # Antimeridian fix: if the valid longitudes span more than 180° the points straddle
+    # lon ±180.  Shift negative longitudes to 0-360 so the convex hull is computed on a
+    # contiguous region rather than wrapping around the whole globe.
+    if mpt_coords:
+        lons = [c[0] for c in mpt_coords]
+        if max(lons) - min(lons) > 180:
+            mpt_coords = [
+                (lon + 360 if lon < 0 else lon, lat) for lon, lat in mpt_coords
+            ]
     return MultiPoint(mpt_coords).convex_hull
 
 

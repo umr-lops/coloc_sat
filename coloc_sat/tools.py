@@ -752,7 +752,7 @@ def get_l2_footprint(dataset):
         Footprint of the product as a polygon
     """
     if "footprint" in dataset.attrs:
-        return convert_str_to_polygon(dataset.attrs["footprint"])
+        polygon = convert_str_to_polygon(dataset.attrs["footprint"])
     else:
         footprint_dict = {}
         if "owiLon" in dataset.variables and "owiLat" in dataset.variables:
@@ -767,7 +767,18 @@ def get_l2_footprint(dataset):
                 for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
             ]
         corners = list(zip(footprint_dict[lon_var], footprint_dict[lat_var]))
-        return Polygon(corners)
+        polygon = Polygon(corners)
+    # Antimeridian fix: a SAR scene crossing lon ±180 produces a polygon whose corners
+    # jump from ~+180 to ~-180, making shapely interpret it as a ~354° wide shape
+    # instead of the actual narrow swath.  When the bounding box spans more than 180°,
+    # shift every negative longitude by +360 so the polygon is expressed as a compact
+    # shape in the 0-360 coordinate space.
+    minx, _, maxx, _ = polygon.bounds
+    if maxx - minx > 180:
+        polygon = Polygon(
+            [(lon + 360 if lon < 0 else lon, lat) for lon, lat in polygon.exterior.coords]
+        )
+    return polygon
 
 
 def open_nc(product_path):
