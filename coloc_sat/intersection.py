@@ -338,8 +338,6 @@ class ProductIntersection:
                     windspd_count_after = dataset[open_acquisition.wind_name].count().item()
                     logger.debug(f"[rasterize_polygon] wind_speed points after dropping NaNs: {windspd_count_after}")
                     
-                    logger.debug(f"[rasterize_polygon] daily grid lon range after rasterize: {dataset[lon_name].min().values} to {dataset[lon_name].max().values}")
-
                     return dataset
             else:
                 raise ValueError(
