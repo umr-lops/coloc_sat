@@ -66,7 +66,11 @@ class GetSarMeta:
             ds = ds.rename(
                 {"owiWindSpeed": "wind_speed", "owiLon": "lon", "owiLat": "lat"}
             )
-            t = self.start_date
+            # for ocn start_date is datetime64[us] ; we force [ns] to avoid wrong time. 
+            if "-ocn-" in product_path:
+                t = np.datetime64(self.start_date, "ns")
+            else: 
+                t = self.start_date
             ds["time"] = xr.DataArray(
                 data=np.full(ds["lon"].shape, t),
                 dims=("owiAzSize", "owiRaSize"),
