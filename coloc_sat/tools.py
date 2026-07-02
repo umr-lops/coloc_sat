@@ -716,7 +716,11 @@ def open_l2(product_path):
     nc_product = find_l2_nc(product_path)
 
     fs = fsspec.filesystem("file")
-    return xr.open_dataset(fs.open(nc_product), engine="h5netcdf")
+    try:
+        return xr.open_dataset(fs.open(nc_product), engine="h5netcdf")
+    except (ValueError, OSError):
+        # h5netcdf is made for HDF5 (NetCDF-4). Les L2-OCN ESA seem to be NetCDF-3
+        return xr.open_dataset(nc_product)
 
 
 def convert_str_to_polygon(poly_str):

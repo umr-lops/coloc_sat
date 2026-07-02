@@ -1,4 +1,5 @@
 import os
+import glob
 from .tools import (
     call_sar_meta,
     open_l2,
@@ -10,8 +11,23 @@ import numpy as np
 import xarray as xr
 
 
+def resolve_ocn_safe(product_path):
+    """ 
+    if `product_path` is .SAFE, return internal .nc.
+    """
+    p = product_path.rstrip("/")
+    if p.upper().endswith(".SAFE") and "_OCN_" in os.path.basename(p).upper():
+        # composante vent dans measurement/ : *-ocn-* (repackage cersat) ou *-owi-* (ESA brut)
+        for pattern in ("*-ocn-*.nc", "*-owi-*.nc"):
+            candidates = sorted(glob.glob(os.path.join(p, "measurement", pattern)))
+            if candidates:
+                return candidates[0]
+    return product_path
+
+
 class GetSarMeta:
     def __init__(self, product_path, product_generation=False, footprint=None):
+        product_path = resolve_ocn_safe(product_path)
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self._l1_info = None
