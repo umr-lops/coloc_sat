@@ -67,16 +67,21 @@ class GetSarMeta:
                 {"owiWindSpeed": "wind_speed", "owiLon": "lon", "owiLat": "lat"}
             )
             # for ocn start_date is datetime64[us] ; we force [ns] to avoid wrong time. 
-            if "-ocn-" in product_path:
-                t = np.datetime64(self.start_date, "ns")
-            else: 
-                t = self.start_date
+            # FIXME solution also for ifremer .nc ; but _gd.nc will fail 
+            t = np.datetime64(self.start_date, "ns")
             ds["time"] = xr.DataArray(
                 data=np.full(ds["lon"].shape, t),
                 dims=("owiAzSize", "owiRaSize"),
                 attrs={"long_name": "time", "standard_name": "time"},
             )
             ds = ds.set_coords(["lon", "lat"])
+
+            # FIXME check if this covers ALL the "else" cases
+            for v in [x for x in ds.data_vars if "owiPolarisation" in ds[x].dims]:
+                orig = ds[v]  # capture: i=0 overwrites ds[v], losing the dim for i=1
+                for i in range(orig.sizes["owiPolarisation"]):
+                    ds[f"{v}{'_cross' if i else ''}"] = orig.isel(owiPolarisation=i)
+
 
             # Keep only variables having owiAzSize and owiRaSize dimensions only
             ds = ds.drop_vars(
