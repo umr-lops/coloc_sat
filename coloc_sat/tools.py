@@ -1051,6 +1051,7 @@ def compute_colocated_data(
     min_px,
     colocated_data_1,
     colocated_data_2,
+    std_data_2,
     main_var_name_1,
     radius_km,
 ):
@@ -1083,6 +1084,10 @@ def compute_colocated_data(
                     )
                     mean_filtered_data = np.nanmean(filtered_data)
                     colocated_data_2[coloc_2_var][i, j] = mean_filtered_data
+                    # For requested variables (e.g. SAR nrcs/nesz), also keep the
+                    # standard deviation of the points averaged inside the radius.
+                    if coloc_2_var in std_data_2:
+                        std_data_2[coloc_2_var][i, j] = np.nanstd(filtered_data)
 
     return colocated_data_1, colocated_data_2
 
