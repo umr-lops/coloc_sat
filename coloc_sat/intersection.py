@@ -41,10 +41,23 @@ class ProductIntersection:
         delta_time=60,
         minimal_area=1600,
         resampling_method="nearest",
+        spatial_resolution_km=25,
+        variables_to_std=None,
         product_generation=True,
     ):
         """
         The intersection information can be be given if available. If not, it'll try to compute it.
+
+        Parameters
+        ----------
+        spatial_resolution_km : float
+            Reference-grid cell size (km) used for swath colocation. The pixel-association
+            search radius is derived from it as ``spatial_resolution_km * sqrt(2) / 2``.
+        variables_to_std : list[str] | None
+            Substrings (matched case-insensitively) of the averaged-dataset variables for
+            which the standard deviation of the pixels inside the radius is also computed
+            and stored as ``<var>_std``. ``None``/empty means no std is computed; in practice
+            ``["nrcs", "nesz"]`` can be used to get the SAR nrcs/nesz variability.
         """
 
         resampling_mapping = {
@@ -57,6 +70,8 @@ class ProductIntersection:
         self.delta_time = delta_time
         self.minimal_area = minimal_area
         self.resampling_method = resampling_mapping[resampling_method]
+        self.spatial_resolution_km = spatial_resolution_km
+        self.variables_to_std = variables_to_std if variables_to_std is not None else []
         self.delta_time_np = np.timedelta64(delta_time, "m")
         self.start_date = None
         self.stop_date = None
@@ -837,8 +852,8 @@ class ProductIntersection:
                         f"does not match lon/lat shape {lon_red.shape}"
                     )
 
-        # FIXME this should be a parameter
-        radius_km = 25 * np.sqrt(2) / 2
+        # Reference-grid cell size (km); the search radius is its half-diagonal.
+        radius_km = self.spatial_resolution_km * np.sqrt(2) / 2
 
         logger.info("Starting resampling.")
         existing_dataset_keys = list(self._datasets.keys())
@@ -958,9 +973,26 @@ class ProductIntersection:
         logger.info(f"The following variables from dataset 1 will be colocated: {list(data_1_reduced.keys())}")
         logger.info(f"The following variables from dataset 2 will be colocated: {list(data_2_reduced.keys())}")
 
+        # Build the std output only for the dataset that gets averaged (the finer one),
+        # keyed on its variables whose lowercased name contains one of `variables_to_std`.
+        std_substrings = tuple(s.lower() for s in self.variables_to_std)
+
+        def _make_std_dict(reduced_data):
+            std = Dict.empty(
+                key_type=types.unicode_type, value_type=types.float64[:, :]
+            )
+            for name in reduced_data:
+                lname = name.lower()
+                if any(sub in lname for sub in std_substrings):
+                    std[name] = np.full(lon_reduced.shape, np.nan)
+            return std
+
         logger.info("Start pixel association...")
         if lon_1_delta > lon_2_delta:
             reprojected_dataset = "dataset2"
+            # dataset2 is the finer/averaged one
+            std_data = _make_std_dict(data_2_reduced)
+            std_target = "dataset2"
             colocated_data_1, colocated_data_2 = compute_colocated_data(
                 lon_1_reduced,
                 lat_1_reduced,
@@ -971,11 +1003,15 @@ class ProductIntersection:
                 1,
                 colocated_data_1,
                 colocated_data_2,
+                std_data,
                 "wind_speed",
                 radius_km,
             )
         else:
             reprojected_dataset = "dataset1"
+            # dataset1 is the finer/averaged one
+            std_data = _make_std_dict(data_1_reduced)
+            std_target = "dataset1"
             colocated_data_2, colocated_data_1 = compute_colocated_data(
                 lon_2_reduced,
                 lat_2_reduced,
@@ -986,6 +1022,7 @@ class ProductIntersection:
                 1,
                 colocated_data_2,
                 colocated_data_1,
+                std_data,
                 "wind_speed",
                 radius_km,
             )
@@ -998,6 +1035,16 @@ class ProductIntersection:
             {var: (("y", "x"), colocated_data_2[var]) for var in colocated_data_2},
             coords={"lon": (("y", "x"), lon_reduced), "lat": (("y", "x"), lat_reduced)},
         )
+
+        # Attach the standard-deviation variables to the averaged dataset.
+        if len(std_data) > 0:
+            std_ds = colocated_ds_2 if std_target == "dataset2" else colocated_ds_1
+            for name in std_data:
+                std_ds[f"{name}_std"] = (("y", "x"), std_data[name])
+            logger.info(
+                f"Standard deviation computed for variables: "
+                f"{[f'{name}_std' for name in std_data]}"
+            )
 
         logger.info("Done pixel association.")
         if meta1.time_name not in colocated_ds_1.variables:

@@ -67,6 +67,15 @@ class GenerateColoc:
     colocation_filename : str | None, optional
         Name of the co-location product that must be created. It is useless to specify one if `product_generation` is False.
         Default value is None.
+    resampling_method : str, optional
+        Resampling method used for gridded co-location (a `rasterio.enums.Resampling` name). Default is `nearest`.
+    spatial_resolution_km : float, optional
+        Reference-grid cell size (km) for swath co-location; the pixel-association search radius is
+        `spatial_resolution_km * sqrt(2) / 2`. Default is 25.
+    variables_to_std : list[str] | None, optional
+        Substrings (matched case-insensitively) of the averaged swath variables for which the standard
+        deviation over the radius is added as `<var>_std` (e.g. `["nrcs", "nesz"]`). None or empty means
+        no standard deviation is computed. Default is None.
     config : str | None, optional
         Path to configuration file to use. If not provided, the one located in ~/coloc_sat/localconfig.yaml will
         be used if it exists, else the config.yml of this package is used.
@@ -156,6 +165,14 @@ class GenerateColoc:
         self.delta_time = delta_time
         self._minimal_area = minimal_area
         self.resampling_method = kwargs.get("resampling_method", "nearest")
+        spatial_resolution_km = kwargs.get("spatial_resolution_km")
+        self.spatial_resolution_km = (
+            25 if spatial_resolution_km is None else spatial_resolution_km
+        )
+        variables_to_std = kwargs.get("variables_to_std")
+        self.variables_to_std = (
+            [] if variables_to_std is None else list(variables_to_std)
+        )
         self.delta_time_np = np.timedelta64(delta_time, "m")
         self.destination_folder = destination_folder
         self._listing_filename = kwargs.get("listing_filename", None)
@@ -375,6 +392,8 @@ class GenerateColoc:
                     delta_time=self.delta_time,
                     minimal_area=self.minimal_area,
                     resampling_method=self.resampling_method,
+                    spatial_resolution_km=self.spatial_resolution_km,
+                    variables_to_std=self.variables_to_std,
                     product_generation=self._product_generation,
                 )
                 _intersections[file] = intersecter

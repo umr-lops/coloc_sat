@@ -27,7 +27,14 @@ class GetAscatMeta:
 
     @staticmethod
     def _open_nc(product_path):
-        ds_scat = xr.open_dataset(product_path, decode_cf=False)
+        if str(product_path).endswith(".gz"):
+            # if ASCAT KNMI L2 is .nc.gz (NetCDF-3)
+            import gzip
+            import io
+            with gzip.open(product_path, "rb") as _f:
+                ds_scat = xr.open_dataset(io.BytesIO(_f.read()), decode_cf=False)
+        else:
+            ds_scat = xr.open_dataset(product_path, decode_cf=False)
 
         # Convert all integer-type data variables to float64
         # This ensures compatibility with later numerical operations, interpolation, etc.

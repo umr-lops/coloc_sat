@@ -1,4 +1,5 @@
 import os
+import glob
 from .tools import (
     call_sar_meta,
     open_l2,
@@ -10,8 +11,23 @@ import numpy as np
 import xarray as xr
 
 
+def resolve_ocn_safe(product_path):
+    """ 
+    if `product_path` is .SAFE, return internal .nc.
+    """
+    p = product_path.rstrip("/")
+    if p.upper().endswith(".SAFE") and "_OCN_" in os.path.basename(p).upper():
+        # composante vent dans measurement/ : *-ocn-* (repackage cersat) ou *-owi-* (ESA brut)
+        for pattern in ("*-ocn-*.nc", "*-owi-*.nc"):
+            candidates = sorted(glob.glob(os.path.join(p, "measurement", pattern)))
+            if candidates:
+                return candidates[0]
+    return product_path
+
+
 class GetSarMeta:
     def __init__(self, product_path, product_generation=False, footprint=None):
+        product_path = resolve_ocn_safe(product_path)
         self.product_path = product_path
         self.product_name = os.path.basename(self.product_path)
         self._l1_info = None
@@ -50,13 +66,22 @@ class GetSarMeta:
             ds = ds.rename(
                 {"owiWindSpeed": "wind_speed", "owiLon": "lon", "owiLat": "lat"}
             )
-            t = self.start_date
+            # for ocn start_date is datetime64[us] ; we force [ns] to avoid wrong time. 
+            # FIXME solution also for ifremer .nc ; but _gd.nc will fail 
+            t = np.datetime64(self.start_date, "ns")
             ds["time"] = xr.DataArray(
                 data=np.full(ds["lon"].shape, t),
                 dims=("owiAzSize", "owiRaSize"),
                 attrs={"long_name": "time", "standard_name": "time"},
             )
             ds = ds.set_coords(["lon", "lat"])
+
+            # FIXME check if this covers ALL the "else" cases
+            for v in [x for x in ds.data_vars if "owiPolarisation" in ds[x].dims]:
+                orig = ds[v]  # capture: i=0 overwrites ds[v], losing the dim for i=1
+                for i in range(orig.sizes["owiPolarisation"]):
+                    ds[f"{v}{'_cross' if i else ''}"] = orig.isel(owiPolarisation=i)
+
 
             # Keep only variables having owiAzSize and owiRaSize dimensions only
             ds = ds.drop_vars(

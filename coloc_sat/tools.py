@@ -717,7 +717,11 @@ def open_l2(product_path):
     nc_product = find_l2_nc(product_path)
 
     fs = fsspec.filesystem("file")
-    return xr.open_dataset(fs.open(nc_product), engine="h5netcdf")
+    try:
+        return xr.open_dataset(fs.open(nc_product), engine="h5netcdf")
+    except (ValueError, OSError):
+        # h5netcdf is made for HDF5 (NetCDF-4). Les L2-OCN ESA seem to be NetCDF-3
+        return xr.open_dataset(nc_product)
 
 
 def convert_str_to_polygon(poly_str):
@@ -1059,6 +1063,7 @@ def compute_colocated_data(
     min_px,
     colocated_data_1,
     colocated_data_2,
+    std_data_2,
     main_var_name_1,
     radius_km,
 ):
@@ -1091,6 +1096,10 @@ def compute_colocated_data(
                     )
                     mean_filtered_data = np.nanmean(filtered_data)
                     colocated_data_2[coloc_2_var][i, j] = mean_filtered_data
+                    # For requested variables (e.g. SAR nrcs/nesz), also keep the
+                    # standard deviation of the points averaged inside the radius.
+                    if coloc_2_var in std_data_2:
+                        std_data_2[coloc_2_var][i, j] = np.nanstd(filtered_data)
 
     return colocated_data_1, colocated_data_2
 
