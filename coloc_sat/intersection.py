@@ -298,6 +298,9 @@ class ProductIntersection:
                     min(np.unique(open_acquisition.dataset[lon_name])),
                     min(np.unique(open_acquisition.dataset[lat_name])),
                 )
+
+                logger.debug(f"[rasterize_polygon] rasterizing with min_bounds {min_bounds}")
+
                 # we can get resolutions like this because it is a regular grid
                 lon_res = abs(
                     open_acquisition.dataset[lon_name][1]
@@ -312,10 +315,14 @@ class ProductIntersection:
                     len(open_acquisition.dataset[lon_name]),
                 ]
                 transform = rasterio.Affine.translation(
-                    min_bounds[0], min_bounds[1]
+                    float(min_bounds[0]) - float(lon_res) / 2,
+                    float(min_bounds[1]) - float(lat_res) / 2,
                 ) * rasterio.Affine.scale(lon_res, lat_res)
+
+                logger.debug(f"[rasterize_polygon] rasterizing polygon {polygon.bounds} with transform {transform} and out_shape {out_shape}")
+
                 return rasterio.features.rasterize(
-                    shapes=[polygon], out_shape=out_shape, transform=transform
+                    shapes=[polygon], out_shape=out_shape, transform=transform, all_touched=True
                 )
             else:
                 raise ValueError(
@@ -331,10 +338,21 @@ class ProductIntersection:
                     lat_name = open_acquisition.latitude_name
 
                     rasterized = rasterize_polygon(open_acquisition, polygon)
+                    windspd_count = open_acquisition.dataset[open_acquisition.wind_name].count().item()
+                    logger.debug(f"[rasterize_polygon] wind_speed points before rasterization: {windspd_count}")
+                    logger.debug(f"[rasterize_polygon] daily grid lon range before rasterize: {open_acquisition.dataset[lon_name].min().values} to {open_acquisition.dataset[lon_name].max().values}")
                     dataset = open_acquisition.dataset.where(rasterized)
+
+                    logger.debug(f"[geographic_intersection] dataset after rasterization has shape {dataset.dims}")
+                    windspd_count_after = dataset[open_acquisition.wind_name].count().item()
+                    logger.debug(f"[rasterize_polygon] wind_speed points after rasterization: {windspd_count_after}")
 
                     dataset = dataset.dropna(lon_name, how="all")
                     dataset = dataset.dropna(lat_name, how="all")
+
+                    windspd_count_after = dataset[open_acquisition.wind_name].count().item()
+                    logger.debug(f"[rasterize_polygon] wind_speed points after dropping NaNs: {windspd_count_after}")
+                    
                     return dataset
             else:
                 raise ValueError(
@@ -350,6 +368,10 @@ class ProductIntersection:
                     start_date=self.start_date,
                     stop_date=self.stop_date,
                 )
+
+                ws_count = dataset[open_acquisition.wind_name].count().item()
+                logger.debug(f"[spatial_temporal_intersection] wind_speed points after temporal extraction: {ws_count}")
+
                 return dataset.where(
                     ~np.isnan(dataset[open_acquisition.wind_name]), drop=True
                 )
@@ -361,11 +383,19 @@ class ProductIntersection:
         def verify_intersection(_ds):
             if (_ds is not None) and (not are_dimensions_empty(_ds)):
                 poly = get_footprint_from_ll_ds(daily, _ds)
+                logger.debug(f"[verify_intersection] daily footprint bounds : {poly.bounds}")
+                logger.debug(f"[verify_intersection] SAR   footprint bounds : {fp.bounds}")
                 is_intersected = poly.intersects(fp)
+                logger.debug(f"[verify_intersection] geometries intersect   : {is_intersected}")
                 if is_intersected:
-                    self.fill_common_footprint(poly.intersection(fp))
-                return self._is_considered_as_intersected
+                    intersection_geom = poly.intersection(fp)
+                    self.fill_common_footprint(intersection_geom)
+                    logger.debug(f"[verify_intersection] intersection bounds    : {intersection_geom.bounds}")
+                result = self._is_considered_as_intersected
+                logger.debug(f"[verify_intersection] is_considered_as_intersected: {result}")
+                return result
             else:
+                logger.debug("[verify_intersection] extracted dataset is empty – no intersection")
                 return False
 
         if (self.meta1.acquisition_type == "truncated_grid") and (
@@ -384,6 +414,35 @@ class ProductIntersection:
                                 acquisition and a truncated one"
             )
         fp = truncated.footprint
+        # Antimeridian fix: fp may be in 0-360 space (any
+        # coordinate > 180 signals that the SAR scene straddles lon ±180).  The
+        # daily-regular-grid dataset is in −180/180 after correct_dataset(), so
+        # rasterize_polygon would build its affine transform in the wrong space.
+        # Convert a working copy of `daily` to 0-360 and re-sort it so that both the
+        # polygon and the dataset share the same coordinate frame.
+        # Python closures bind by reference: redefining `daily` here is automatically
+        # visible to every nested function (rasterize_polygon, geographic_intersection,
+        # spatial_temporal_intersection, verify_intersection) called below.
+        _, _, fp_maxx, _ = fp.bounds
+        logger.debug(
+            f"[intersection_drg_truncated_grid] SAR footprint bounds: {fp.bounds}  "
+            f"(antimeridian mode: {fp_maxx > 180})"
+        )
+        if fp_maxx > 180:
+            daily_work = copy.copy(daily)
+            _lon_name = daily.longitude_name
+            _ds_360 = daily.dataset.assign_coords(
+                {_lon_name: daily.dataset[_lon_name] % 360}
+            )
+            if _ds_360[_lon_name].ndim == 1:
+                _ds_360 = _ds_360.sortby(_lon_name)
+            daily_work.dataset = _ds_360
+            daily = daily_work
+            logger.debug(
+                f"[intersection_drg_truncated_grid] daily lon range after 0-360 conversion: "
+                f"{float(daily.dataset[daily.longitude_name].min()):.3f} "
+                f"to {float(daily.dataset[daily.longitude_name].max()):.3f}"
+            )
         if daily.has_orbited_segmentation:
             li = []
             # list that store booleans to express if an orbit has an intersection
@@ -707,6 +766,14 @@ class ProductIntersection:
         else:
             dataset1["x"] = dataset1["x"] % 360
             dataset2["x"] = dataset2["x"] % 360
+            # Antimeridian fix: % 360 may produce an unsorted coordinate array
+            # (e.g. SMOS: [-180…0…180] → [180…360, 0…180] with a jump in the middle, or a
+            # SAR dataset whose lons wrap at ±180).  Sort the 1-D coordinate so that the
+            # affine transform computed by rioxarray / rasterio is correct.
+            if dataset1["x"].ndim == 1:
+                dataset1 = dataset1.sortby("x")
+            if dataset2["x"].ndim == 1:
+                dataset2 = dataset2.sortby("x")
             meridian_datasets = False
         logger.info("Done modifying dataset coordinates.")
 
@@ -738,6 +805,11 @@ class ProductIntersection:
             )
             dataset1["x"] = dataset1["x"] % 360
             dataset2["x"] = dataset2["x"] % 360
+            # Same sort as the non-meridian branch: ensure monotonic x after % 360.
+            if dataset1["x"].ndim == 1:
+                dataset1 = dataset1.sortby("x")
+            if dataset2["x"].ndim == 1:
+                dataset2 = dataset2.sortby("x")
             logger.info("Done modifying dataset coordinates.")
 
         logger.info("Renaming dataset coordinates into lon-lat.")
@@ -1053,11 +1125,13 @@ class ProductIntersection:
             lambda x, y, z=None: shape360(x, y), poly_intersection
         )
         logger.info("Done modifying polygons coords range into 0-360.")
+        logger.debug(f"[get_common_zone_gridded] common_footprint bounds: {poly_intersection.bounds}")
 
         logger.info("Calculating geometry_mask of reprojected dataset.")
         if reprojected_dataset == "dataset1":
             lon_name = meta1.longitude_name
             lat_name = meta1.latitude_name
+            logger.debug(f"[get_common_zone_gridded] dataset1 lon range: {dataset1[lon_name].min().values} to {dataset1[lon_name].max().values}")
             geometry_mask = rasterio.features.geometry_mask(
                 [poly_intersection],
                 out_shape=(dataset1[lat_name].shape[0], dataset1[lon_name].shape[0]),
@@ -1089,6 +1163,8 @@ class ProductIntersection:
             dataset1_common_zone[meta1.longitude_name],
             dataset1_common_zone[meta1.latitude_name],
         )
+        logger.debug("[get_common_zone_gridded] lonmax before mask: %s", np.nanmax(lon2D))
+
         lon2D[~geometry_mask] = np.nan
         lat2D[~geometry_mask] = np.nan
         # We need to round these values to avoid a bug which can occur when merging datasets
@@ -1096,19 +1172,22 @@ class ProductIntersection:
         lon_max = round(np.nanmax(lon2D), 6)
         lat_min = round(np.nanmin(lat2D), 6)
         lat_max = round(np.nanmax(lat2D), 6)
+
+        logger.debug(f"[get_common_zone_gridded] lon_min: {lon_min}, lon_max: {lon_max}, lat_min: {lat_min}, lat_max: {lat_max}")
+
         # reshape
         dataset1_common_zone = dataset1_common_zone.where(
-            (dataset1_common_zone[meta1.longitude_name] > lon_min)
-            & (dataset1_common_zone[meta1.longitude_name] < lon_max)
-            & (dataset1_common_zone[meta1.latitude_name] > lat_min)
-            & (dataset1_common_zone[meta1.latitude_name] < lat_max),
+            (dataset1_common_zone[meta1.longitude_name] >= lon_min)
+            & (dataset1_common_zone[meta1.longitude_name] <= lon_max)
+            & (dataset1_common_zone[meta1.latitude_name] >= lat_min)
+            & (dataset1_common_zone[meta1.latitude_name] <= lat_max),
             drop=True,
         )
         dataset2_common_zone = dataset2_common_zone.where(
-            (dataset2_common_zone[meta2.longitude_name] > lon_min)
-            & (dataset2_common_zone[meta2.longitude_name] < lon_max)
-            & (dataset2_common_zone[meta2.latitude_name] > lat_min)
-            & (dataset2_common_zone[meta2.latitude_name] < lat_max),
+            (dataset2_common_zone[meta2.longitude_name] >= lon_min)
+            & (dataset2_common_zone[meta2.longitude_name] <= lon_max)
+            & (dataset2_common_zone[meta2.latitude_name] >= lat_min)
+            & (dataset2_common_zone[meta2.latitude_name] <= lat_max),
             drop=True,
         )
         dataset1_common_zone = dataset1_common_zone.assign_attrs(
@@ -1120,10 +1199,17 @@ class ProductIntersection:
         dataset1_common_zone = dataset1_common_zone.assign_coords(
             lon=(((dataset1_common_zone[meta1.longitude_name] + 180) % 360) - 180)
         )
+        # Antimeridian fix: the 0-360→-180/180 formula flips the sign at 180°, producing
+        # a non-monotonic coordinate (e.g. [175,…,179, -180,-179,…,-175]).  Sort by lon
+        # so that downstream merge / selection operations work on a properly ordered axis.
+        if dataset1_common_zone.coords["lon"].ndim == 1:
+            dataset1_common_zone = dataset1_common_zone.sortby("lon")
         dataset2_common_zone = dataset2_common_zone.assign_coords(
             lon=(((dataset2_common_zone[meta2.longitude_name] + 180) % 360) - 180)
         )
-        logger.info("Modifying datasets coords in range -180,180.")
+        if dataset2_common_zone.coords["lon"].ndim == 1:
+            dataset2_common_zone = dataset2_common_zone.sortby("lon")
+        logger.info("Done modifying datasets coords in range -180,180.")
 
         dataset1_common_zone = dataset1_common_zone.where(
             np.isfinite(dataset1_common_zone[meta1.time_name]), drop=True
@@ -1253,6 +1339,12 @@ class ProductIntersection:
         dataset1 = self.common_zone_datasets[product_name1]
         product_name2 = self.meta2.product_name
         dataset2 = self.common_zone_datasets[product_name2]
+
+        #wpsd1 = dataset1["wind_speed"].count().item()
+        #wpsd2 = dataset2["wind"].count().item()
+        #logger.debug(f"[format_datasets] common zone {self.common_footprint}")
+        #logger.debug(f"[format_datasets] counts wpsd1: {wpsd1}, wpsd2: {wpsd2}")
+
         # can't format datasets and create co-location product if dimensions are empty
         if are_dimensions_empty(dataset1) or are_dimensions_empty(dataset2):
             raise ValueError(

@@ -18,6 +18,7 @@ import re
 from numba import njit, prange
 from numba.typed import Dict
 from numba.core import types
+import pandas as pd
 
 param_config = None
 
@@ -439,9 +440,9 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
 
     Parameters
     ----------
-    start_date: numpy.datetime64
+    start_date: pandas.Timestamp
         Start date for the research of era 5 files
-    stop_date: numpy.datetime64
+    stop_date: pandas.Timestamp
         End date for the research of era 5 files
     resource: str
         resource string, with strftime template
@@ -454,15 +455,15 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
         Concerned ERA5 files
     """
     files = []
-    date = start_date.astype("datetime64[ns]")
+    date = start_date
     while date < stop_date:
-        datetime_date = datetime.utcfromtimestamp(date.astype(int) * 1e-9)
+        datetime_date = datetime.utcfromtimestamp(date.value * 1e-9)
         closest_date, filename = resource_strftime(
             resource, step=step, date=datetime_date
         )
         if filename not in files:
             files.append(filename)
-        date += np.timedelta64(step, "m")
+        date += pd.Timedelta(minutes=step)
     return files
 
 
@@ -756,7 +757,7 @@ def get_l2_footprint(dataset):
         Footprint of the product as a polygon
     """
     if "footprint" in dataset.attrs:
-        return convert_str_to_polygon(dataset.attrs["footprint"])
+        polygon = convert_str_to_polygon(dataset.attrs["footprint"])
     else:
         footprint_dict = {}
         if "owiLon" in dataset.variables and "owiLat" in dataset.variables:
@@ -771,7 +772,18 @@ def get_l2_footprint(dataset):
                 for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
             ]
         corners = list(zip(footprint_dict[lon_var], footprint_dict[lat_var]))
-        return Polygon(corners)
+        polygon = Polygon(corners)
+    # Antimeridian fix: a SAR scene crossing lon ±180 produces a polygon whose corners
+    # jump from ~+180 to ~-180, making shapely interpret it as a ~354° wide shape
+    # instead of the actual narrow swath.  When the bounding box spans more than 180°,
+    # shift every negative longitude by +360 so the polygon is expressed as a compact
+    # shape in the 0-360 coordinate space.
+    minx, _, maxx, _ = polygon.bounds
+    if maxx - minx > 180:
+        polygon = Polygon(
+            [(lon + 360 if lon < 0 else lon, lat) for lon, lat in polygon.exterior.coords]
+        )
+    return polygon
 
 
 def open_nc(product_path):
