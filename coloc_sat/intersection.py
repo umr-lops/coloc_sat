@@ -25,6 +25,7 @@ from .tools import (
     convert_str_to_polygon,
     filter_data_polygon,
     compute_colocated_data,
+    mean_lon_step,
 )
 from .version import __version__
 from numba.typed import Dict
@@ -903,8 +904,8 @@ class ProductIntersection:
         lon_2 = ds2[lon_name_2].values
         lat_2 = ds2[lat_name_2].values
 
-        lon_1_delta = np.mean(np.abs(np.diff(lon_1[~np.isnan(lon_1)])))
-        lon_2_delta = np.mean(np.abs(np.diff(lon_2[~np.isnan(lon_2)])))
+        lon_1_delta = mean_lon_step(lon_1)
+        lon_2_delta = mean_lon_step(lon_2)
         if np.isnan(lon_1_delta) or np.isnan(lon_2_delta):
             raise ValueError("lon_1_delta or lon_2_delta should not be NaN")
 
