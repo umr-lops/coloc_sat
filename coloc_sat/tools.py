@@ -978,6 +978,13 @@ def point_in_polygon(x, y, polygon):
     return inside
 
 
+def mean_lon_step(lon):
+    """Mean absolute step between consecutive longitudes, antimeridian-safe.
+    """
+    lon = lon[~np.isnan(lon)]
+    return np.mean(np.abs((np.diff(lon) + 180) % 360 - 180))
+
+
 @njit(parallel=True)
 def filter_data_polygon(lon, lat, data_vars, polygon):
     mask = np.zeros(lon.shape, dtype=np.bool_)
