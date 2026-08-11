@@ -61,8 +61,14 @@ class GetAscatMeta:
         # Explicitly mark lat/lon as coordinate variables
         ds_scat = ds_scat.set_coords(('lat', 'lon'))
 
-        # Keep only relevant physical variables
-        ds_scat = ds_scat[['wind_dir', 'wind_speed', 'time']].load()
+        from .tools import load_config
+        try:
+            extra_vars_to_keep = load_config().get("extra_vars_to_keep", []) or []
+        except Exception:
+            extra_vars_to_keep = []
+        _extra = [v for v in extra_vars_to_keep if v in ds_scat.variables]
+        
+        ds_scat = ds_scat[['wind_dir', 'wind_speed', 'time'] + _extra].load()
 
         # Rename 'wind_dir' to 'wind_direction' with proper dimensions and metadata
         ds_scat['wind_direction'] = (('row', 'cell'), ds_scat['wind_dir'].data)
@@ -77,7 +83,7 @@ class GetAscatMeta:
             'long_name': 'wind speed',
             'units': 'degree_true'
         }
-        return ds_scat[['wind_direction', 'wind_speed', 'time']]
+        return ds_scat[['wind_direction', 'wind_speed', 'time'] + _extra]
 
 
     @property
