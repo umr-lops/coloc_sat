@@ -2,11 +2,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from .tools import correct_dataset
 import os
 import numpy as np
 import xarray as xr
-
 
 def extract_wind_speed(smos_dataset):
     return smos_dataset.where((np.isfinite(smos_dataset.wind_dir)), drop=True)
@@ -22,11 +20,11 @@ class GetHy2Meta:
         self._latitude_name = "lat"
         if footprint is not None:
             self._footprint = footprint
-        self._dataset = GetHy2Meta._open_nc(product_path).load()
+        self._dataset = self._open_nc(product_path).load()
+        from .tools import correct_dataset # to avoid circular import
         self.dataset = correct_dataset(self._dataset, self.longitude_name)
 
-    @staticmethod
-    def _open_nc(product_path):
+    def _open_nc(self, product_path):
         ds_scat = xr.open_dataset(product_path, decode_cf=False)
 
         # Convert all integer-type data variables to float64
@@ -54,15 +52,8 @@ class GetHy2Meta:
         # Explicitly mark lat/lon as coordinate variables
         ds_scat = ds_scat.set_coords(('lat', 'lon'))
 
-
-        from .tools import load_config
-        try:
-            extra_vars_to_keep = load_config().get("extra_vars_to_keep", []) or []
-        except Exception:
-            extra_vars_to_keep = []
-        _extra = [v for v in extra_vars_to_keep if v in ds_scat.variables]
-        
-        ds_scat = ds_scat[['wind_dir', 'wind_speed', 'time'] + _extra].load()
+        from .tools import apply_load_variables  # to avoid circular import
+        ds_scat = apply_load_variables(ds_scat, self.mission_name, ["wind_dir", "wind_speed", "time"])
 
         # Rename 'wind_dir' to 'wind_direction' with proper dimensions and metadata
         ds_scat['wind_direction'] = (('row', 'cell'), ds_scat['wind_dir'].data)
@@ -71,13 +62,16 @@ class GetHy2Meta:
             'units': 'degree_true'
         }
 
+        # drop the original 'wind_dir' variable to avoid confusion
+        ds_scat = ds_scat.drop_vars('wind_dir')
+
         # Re-declare 'wind_speed' with proper shape and metadata
         ds_scat['wind_speed'] = (('row', 'cell'), ds_scat['wind_speed'].data)
         ds_scat['wind_speed'].attrs = {
             'long_name': 'wind speed',
             'units': 'm/s'
         }
-        return ds_scat[['wind_direction', 'wind_speed', 'time'] + _extra]
+        return ds_scat
 
     @property
     def footprint(self):
