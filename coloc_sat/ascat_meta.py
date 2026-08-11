@@ -81,7 +81,7 @@ class GetAscatMeta:
         ds_scat['wind_speed'] = (('row', 'cell'), ds_scat['wind_speed'].data)
         ds_scat['wind_speed'].attrs = {
             'long_name': 'wind speed',
-            'units': 'degree_true'
+            'units': 'm/s'
         }
         return ds_scat[['wind_direction', 'wind_speed', 'time'] + _extra]
 

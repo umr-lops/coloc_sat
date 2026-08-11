@@ -1061,6 +1061,18 @@ class ProductIntersection:
             "datetime64[ns]"
         )
 
+        # Re-assign source variable attributes (units, long_name, flag_meanings...):
+        for _out, _src in ((colocated_ds_1, ds1), (colocated_ds_2, ds2)):
+            for _var in _out.variables:
+                if _out[_var].attrs:
+                    continue
+                if _var in _src.variables:
+                    _out[_var].attrs = dict(_src[_var].attrs)
+                elif _var.endswith("_std") and _var[:-4] in _src.variables:
+                    _attr = dict(_src[_var[:-4]].attrs)
+                    _attr["long_name"] = "Standard deviation of " + _attr.get("long_name", _var[:-4])
+                    _out[_var].attrs = _attr
+
         return {
             "meta1": colocated_ds_1,
             "meta2": colocated_ds_2,
