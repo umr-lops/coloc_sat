@@ -1,3 +1,8 @@
+# Paths to data files
+# This example provides multiple paths to give several examples, but only one can be provided,
+# or be provided through --mission-products-folder
+# Format using %Y, %m, %d and %H should be used in the paths to let the program find the files for the given date.
+# The day of year can be used with %(dayOfYear) in the path.
 paths:
   SMOS:
     - '/home/ref-smoswind-public/data/v3.0/l3/data/reprocessing/%Y/%(dayOfYear)/*%Y%m%d*.nc'
@@ -31,6 +36,12 @@ paths:
     - '/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily/%Y/%(dayOfYear)/RSS_smap_*.nc'
     - '/home/datawork-cersat-public/provider/remss/satellite/l3/smap/smap/wind/v1.0/daily_nrt/%Y/%(dayOfYear)/RSS_smap_*.nc'
 
+# Variables to load for each mission
+# The dict key is the mission_name as specified in the mission_name method in the 
+# meta class of the mission product (ie. "Soil Moisture and Ocean Salinity")
+# The list values are the variables names in the loaded file to keep.
+# Lon/lat and time are always loaded, so they don't need to be specified here.
+# If nothing is specified for a mission, all variables are loaded.
 load_variables:
   "Soil Moisture and Ocean Salinity":
     - wind_speed
@@ -40,6 +51,9 @@ load_variables:
     - wind_from_direction
     - time
 
+# Dict to rename variables
+# This is used by some of the meta mission classes, but not thoroughly implemented yet.
+# (ie. rename_vars_in_coloc in smap_meta.py)
 common_var_names:
   wind_speed: wind_speed
   wind_direction: wind_direction_ecmwf
