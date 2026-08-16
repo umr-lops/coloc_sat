@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime
 import xarray as xr
 
-from .tools import open_nc, convert_mingmt, correct_dataset, common_var_names
+from .tools import open_nc, convert_mingmt, correct_dataset, common_var_names, apply_load_variables
 
 
 class GetSmapMeta:
@@ -17,6 +17,9 @@ class GetSmapMeta:
         if footprint is not None:
             self._footprint = footprint
         self._dataset = open_nc(product_path).load()
+        self._dataset = apply_load_variables(
+            self._dataset, self.mission_name, ["wind", "minute", self.orbit_segment_name]
+        )
         self.dataset = self.add_source_reference_attribute(ds=self.dataset)
         self.dataset = correct_dataset(self.dataset, self.longitude_name)
         self.dataset = convert_mingmt(self)

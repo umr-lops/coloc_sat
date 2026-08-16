@@ -5,6 +5,7 @@ from .tools import (
     open_l2,
     get_l2_footprint,
     extract_start_stop_dates_from_sar,
+    apply_load_variables,
 )
 from shapely.geometry import Polygon
 import numpy as np
@@ -59,12 +60,15 @@ class GetSarMeta:
     def open_format_l2(self, product_path):
         ds = open_l2(product_path)
         if self.is_gridded:
-            return ds
+            return apply_load_variables(ds, self.mission_name, ["wind_speed"])
         elif "sw" in product_path:
-            return ds
+            return apply_load_variables(ds, self.mission_name, ["wind_speed"])
         else:
+            ds = ds.rename({"owiLon": "lon", "owiLat": "lat"})
+            ds = ds.set_coords(["lon", "lat"])
+            ds = apply_load_variables(ds, self.mission_name, ["owiWindSpeed"])
             ds = ds.rename(
-                {"owiWindSpeed": "wind_speed", "owiLon": "lon", "owiLat": "lat"}
+                {"owiWindSpeed": "wind_speed"}
             )
             # for ocn start_date is datetime64[us] ; we force [ns] to avoid wrong time. 
             # FIXME solution also for ifremer .nc ; but _gd.nc will fail 
@@ -74,7 +78,6 @@ class GetSarMeta:
                 dims=("owiAzSize", "owiRaSize"),
                 attrs={"long_name": "time", "standard_name": "time"},
             )
-            ds = ds.set_coords(["lon", "lat"])
 
             # FIXME check if this covers ALL the "else" cases
             for v in [x for x in ds.data_vars if "owiPolarisation" in ds[x].dims]:

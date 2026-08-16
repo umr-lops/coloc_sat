@@ -1,4 +1,4 @@
-from .tools import open_smos_file, correct_dataset, common_var_names
+from .tools import open_smos_file, correct_dataset, common_var_names, apply_load_variables
 import os
 import numpy as np
 
@@ -18,6 +18,9 @@ class GetSmosMeta:
         if footprint is not None:
             self._footprint = footprint
         self._dataset = open_smos_file(product_path).squeeze().load()
+        self._dataset = apply_load_variables(
+            self._dataset, self.mission_name, ["wind_speed", self._time_name]
+        )
         self.dataset = correct_dataset(self.dataset, self.longitude_name)
 
     @property

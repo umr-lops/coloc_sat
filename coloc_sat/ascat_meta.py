@@ -2,7 +2,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from .tools import correct_dataset
+from .tools import correct_dataset, apply_load_variables
 import os
 import numpy as np
 import xarray as xr
@@ -22,11 +22,10 @@ class GetAscatMeta:
         self._latitude_name = "lat"
         if footprint is not None:
             self._footprint = footprint
-        self._dataset = GetAscatMeta._open_nc(product_path).load()
+        self._dataset = self._open_nc(product_path).load()
         self.dataset = correct_dataset(self._dataset, self.longitude_name)
 
-    @staticmethod
-    def _open_nc(product_path):
+    def _open_nc(self, product_path):
         if str(product_path).endswith(".gz"):
             # if ASCAT KNMI L2 is .nc.gz (NetCDF-3)
             import gzip
@@ -61,8 +60,10 @@ class GetAscatMeta:
         # Explicitly mark lat/lon as coordinate variables
         ds_scat = ds_scat.set_coords(('lat', 'lon'))
 
-        # Keep only relevant physical variables
-        ds_scat = ds_scat[['wind_dir', 'wind_speed', 'time']].load()
+        ds_scat = apply_load_variables(
+            ds_scat, self.mission_name,
+            required_vars=["wind_dir", "wind_speed", "time"],
+        )
 
         # Rename 'wind_dir' to 'wind_direction' with proper dimensions and metadata
         ds_scat['wind_direction'] = (('row', 'cell'), ds_scat['wind_dir'].data)
@@ -71,13 +72,16 @@ class GetAscatMeta:
             'units': 'degree_true'
         }
 
+        # drop the original 'wind_dir' variable to avoid confusion
+        ds_scat = ds_scat.drop_vars('wind_dir')
+
         # Re-declare 'wind_speed' with proper shape and metadata
         ds_scat['wind_speed'] = (('row', 'cell'), ds_scat['wind_speed'].data)
         ds_scat['wind_speed'].attrs = {
             'long_name': 'wind speed',
-            'units': 'degree_true'
+            'units': 'm/s'
         }
-        return ds_scat[['wind_direction', 'wind_speed', 'time']]
+        return ds_scat
 
 
     @property

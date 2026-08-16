@@ -49,7 +49,7 @@ pip install xarray-safe-rcm
 
 ### Configuration
 
-Before using **coloc_sat**, you need to configure the paths to your satellite data products and define common variable names. Follow the steps below:
+Before using **coloc_sat**, you need to configure the paths to your satellite data products and optionnaly define common variable names. Follow the steps below:
 
 1. Create a directory named `coloc_sat` in your home directory.
 2. Inside the `coloc_sat` directory, create a file named `localconfig.yml`.
@@ -87,6 +87,16 @@ paths:
   SMAP:
     - '/path/to/smap/%Y/%(dayOfYear)/RSS_smap_*.nc'
     - '/path2/to/smap/%Y/%(dayOfYear)/RSS_smap_*.nc'
+
+load_variables:
+  "Soil Moisture and Ocean Salinity":
+    - wind_speed
+    - measurement_time
+  "RADARSAT Constellation 2":
+    - wind_speed
+    - wind_from_direction
+    - time
+
 common_var_names:
   wind_speed: wind_speed
   wind_direction: wind_direction_ecmwf
@@ -96,7 +106,9 @@ common_var_names:
   time: time
 ```
 
-Replace the paths with the actual paths to your satellite data products. Use the placeholders %Y, %m, %d, and %(dayOfYear) to automatically parse dates from the paths.
+Replace the paths with the actual paths to your satellite data products. Use the placeholders %Y, %m, %d, and %(dayOfYear) to automatically parse dates from the paths. Only the path for the products you want to co-located with are needed. \
+`load_variables` can be used if a subset of products variables must be loaded, instead of all by default. \
+See `config_explained.yaml` for some more details.
 
 ### Co-locating Data
 
