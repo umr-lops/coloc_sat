@@ -44,6 +44,40 @@ def load_config():
     return config
 
 
+def apply_load_variables(ds, mission_name, required_vars, default_vars=None):
+    """
+    Subset an xarray Dataset to variables listed in the ``load_variables`` config
+    section for *mission_name*.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+    mission_name : str
+        Key to look up under ``load_variables`` in the config.
+    required_vars : list[str]
+        Variables that **must** be present in ``load_variables`` when it is set;
+        a :class:`ValueError` is raised if any are missing.
+    default_vars : list[str] or None
+        When ``load_variables`` is not configured, subset to these variables instead.
+        ``None`` (default) returns *ds* unchanged.
+
+    Returns
+    -------
+    xarray.Dataset
+    """
+    load_variables = load_config().get("load_variables", {}).get(mission_name, [])
+    if not load_variables:
+        if default_vars is not None:
+            return ds[[v for v in default_vars if v in ds.variables]]
+        return ds
+    missing = [v for v in required_vars if v not in load_variables]
+    if missing:
+        raise ValueError(
+            f"{missing} must be included in the load_variables for '{mission_name}'."
+        )
+    return ds[[v for v in load_variables if v in ds.variables]]
+
+
 def edit_config(new_config: dict):
     global _cached_config
     _cached_config = new_config
@@ -976,6 +1010,13 @@ def point_in_polygon(x, y, polygon):
                         inside = not inside
         px, py = sx, sy
     return inside
+
+
+def mean_lon_step(lon):
+    """Mean absolute step between consecutive longitudes, antimeridian-safe.
+    """
+    lon = lon[~np.isnan(lon)]
+    return np.mean(np.abs((np.diff(lon) + 180) % 360 - 180))
 
 
 @njit(parallel=True)
