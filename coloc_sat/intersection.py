@@ -25,6 +25,7 @@ from .tools import (
     convert_str_to_polygon,
     filter_data_polygon,
     compute_colocated_data,
+    mean_lon_step,
 )
 from .version import __version__
 from numba.typed import Dict
@@ -903,8 +904,8 @@ class ProductIntersection:
         lon_2 = ds2[lon_name_2].values
         lat_2 = ds2[lat_name_2].values
 
-        lon_1_delta = np.mean(np.abs(np.diff(lon_1[~np.isnan(lon_1)])))
-        lon_2_delta = np.mean(np.abs(np.diff(lon_2[~np.isnan(lon_2)])))
+        lon_1_delta = mean_lon_step(lon_1)
+        lon_2_delta = mean_lon_step(lon_2)
         if np.isnan(lon_1_delta) or np.isnan(lon_2_delta):
             raise ValueError("lon_1_delta or lon_2_delta should not be NaN")
 
@@ -1059,6 +1060,18 @@ class ProductIntersection:
         colocated_ds_2[meta2.time_name] = colocated_ds_2[meta2.time_name].astype(
             "datetime64[ns]"
         )
+
+        # Re-assign source variable attributes (units, long_name, flag_meanings...):
+        for _out, _src in ((colocated_ds_1, ds1), (colocated_ds_2, ds2)):
+            for _var in _out.variables:
+                if _out[_var].attrs:
+                    continue
+                if _var in _src.variables:
+                    _out[_var].attrs = dict(_src[_var].attrs)
+                elif _var.endswith("_std") and _var[:-4] in _src.variables:
+                    _attr = dict(_src[_var[:-4]].attrs)
+                    _attr["long_name"] = "Standard deviation of " + _attr.get("long_name", _var[:-4])
+                    _out[_var].attrs = _attr
 
         return {
             "meta1": colocated_ds_1,
