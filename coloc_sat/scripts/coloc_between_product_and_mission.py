@@ -105,6 +105,21 @@ def main():
         "--resampling-method", type=str, default="nearest", choices=resampling_methods
     )
     parser.add_argument(
+        "--spatial-resolution-km",
+        type=float,
+        default=25,
+        help="Reference-grid cell size in km used for swath colocation. The pixel-association "
+        "search radius is size*sqrt(2)/2. Default: 25.",
+    )
+    parser.add_argument(
+        "--variables-to-std",
+        nargs="+",
+        default=[],
+        help="Space-separated substrings (case-insensitive) of the averaged swath variables for "
+        "which a standard deviation over the radius is added as <var>_std. "
+        "Default: none. Example: --variables-to-std nrcs nesz",
+    )   
+    parser.add_argument(
         "--config",
         type=str,
         help="Configuration file to use instead of the " "default one.",

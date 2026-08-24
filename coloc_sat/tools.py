@@ -18,6 +18,7 @@ import re
 from numba import njit, prange
 from numba.typed import Dict
 from numba.core import types
+import pandas as pd
 
 param_config = None
 
@@ -41,6 +42,40 @@ def load_config():
         config = yaml.safe_load(file)
     _cached_config = config
     return config
+
+
+def apply_load_variables(ds, mission_name, required_vars, default_vars=None):
+    """
+    Subset an xarray Dataset to variables listed in the ``load_variables`` config
+    section for *mission_name*.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+    mission_name : str
+        Key to look up under ``load_variables`` in the config.
+    required_vars : list[str]
+        Variables that **must** be present in ``load_variables`` when it is set;
+        a :class:`ValueError` is raised if any are missing.
+    default_vars : list[str] or None
+        When ``load_variables`` is not configured, subset to these variables instead.
+        ``None`` (default) returns *ds* unchanged.
+
+    Returns
+    -------
+    xarray.Dataset
+    """
+    load_variables = load_config().get("load_variables", {}).get(mission_name, [])
+    if not load_variables:
+        if default_vars is not None:
+            return ds[[v for v in default_vars if v in ds.variables]]
+        return ds
+    missing = [v for v in required_vars if v not in load_variables]
+    if missing:
+        raise ValueError(
+            f"{missing} must be included in the load_variables for '{mission_name}'."
+        )
+    return ds[[v for v in load_variables if v in ds.variables]]
 
 
 def edit_config(new_config: dict):
@@ -439,9 +474,9 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
 
     Parameters
     ----------
-    start_date: numpy.datetime64
+    start_date: pandas.Timestamp
         Start date for the research of era 5 files
-    stop_date: numpy.datetime64
+    stop_date: pandas.Timestamp
         End date for the research of era 5 files
     resource: str
         resource string, with strftime template
@@ -454,15 +489,15 @@ def get_nearest_era5_files(start_date, stop_date, resource, step=1):
         Concerned ERA5 files
     """
     files = []
-    date = start_date.astype("datetime64[ns]")
+    date = start_date
     while date < stop_date:
-        datetime_date = datetime.utcfromtimestamp(date.astype(int) * 1e-9)
+        datetime_date = datetime.utcfromtimestamp(date.value * 1e-9)
         closest_date, filename = resource_strftime(
             resource, step=step, date=datetime_date
         )
         if filename not in files:
             files.append(filename)
-        date += np.timedelta64(step, "m")
+        date += pd.Timedelta(minutes=step)
     return files
 
 
@@ -716,7 +751,11 @@ def open_l2(product_path):
     nc_product = find_l2_nc(product_path)
 
     fs = fsspec.filesystem("file")
-    return xr.open_dataset(fs.open(nc_product), engine="h5netcdf")
+    try:
+        return xr.open_dataset(fs.open(nc_product), engine="h5netcdf")
+    except (ValueError, OSError):
+        # h5netcdf is made for HDF5 (NetCDF-4). Les L2-OCN ESA seem to be NetCDF-3
+        return xr.open_dataset(nc_product)
 
 
 def convert_str_to_polygon(poly_str):
@@ -752,7 +791,7 @@ def get_l2_footprint(dataset):
         Footprint of the product as a polygon
     """
     if "footprint" in dataset.attrs:
-        return convert_str_to_polygon(dataset.attrs["footprint"])
+        polygon = convert_str_to_polygon(dataset.attrs["footprint"])
     else:
         footprint_dict = {}
         if "owiLon" in dataset.variables and "owiLat" in dataset.variables:
@@ -767,7 +806,18 @@ def get_l2_footprint(dataset):
                 for a, x in [(0, 0), (0, -1), (-1, -1), (-1, 0)]
             ]
         corners = list(zip(footprint_dict[lon_var], footprint_dict[lat_var]))
-        return Polygon(corners)
+        polygon = Polygon(corners)
+    # Antimeridian fix: a SAR scene crossing lon ±180 produces a polygon whose corners
+    # jump from ~+180 to ~-180, making shapely interpret it as a ~354° wide shape
+    # instead of the actual narrow swath.  When the bounding box spans more than 180°,
+    # shift every negative longitude by +360 so the polygon is expressed as a compact
+    # shape in the 0-360 coordinate space.
+    minx, _, maxx, _ = polygon.bounds
+    if maxx - minx > 180:
+        polygon = Polygon(
+            [(lon + 360 if lon < 0 else lon, lat) for lon, lat in polygon.exterior.coords]
+        )
+    return polygon
 
 
 def open_nc(product_path):
@@ -962,6 +1012,13 @@ def point_in_polygon(x, y, polygon):
     return inside
 
 
+def mean_lon_step(lon):
+    """Mean absolute step between consecutive longitudes, antimeridian-safe.
+    """
+    lon = lon[~np.isnan(lon)]
+    return np.mean(np.abs((np.diff(lon) + 180) % 360 - 180))
+
+
 @njit(parallel=True)
 def filter_data_polygon(lon, lat, data_vars, polygon):
     mask = np.zeros(lon.shape, dtype=np.bool_)
@@ -1047,6 +1104,7 @@ def compute_colocated_data(
     min_px,
     colocated_data_1,
     colocated_data_2,
+    std_data_2,
     main_var_name_1,
     radius_km,
 ):
@@ -1079,6 +1137,10 @@ def compute_colocated_data(
                     )
                     mean_filtered_data = np.nanmean(filtered_data)
                     colocated_data_2[coloc_2_var][i, j] = mean_filtered_data
+                    # For requested variables (e.g. SAR nrcs/nesz), also keep the
+                    # standard deviation of the points averaged inside the radius.
+                    if coloc_2_var in std_data_2:
+                        std_data_2[coloc_2_var][i, j] = np.nanstd(filtered_data)
 
     return colocated_data_1, colocated_data_2
 
