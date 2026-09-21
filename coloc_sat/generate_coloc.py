@@ -4,6 +4,7 @@ from .tools import (
     call_meta_class,
     get_all_comparison_files,
     extract_name_from_meta_class,
+    read_listing_lines,
     set_config,
     edit_config,
     load_config,
@@ -12,6 +13,7 @@ from .intersection import ProductIntersection
 from .sar_meta import GetSarMeta
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +85,8 @@ class GenerateColoc:
         Optional folder path where to search for the mission products. If not provided, the script will use the value specified in the config file. Format example: /path/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc
     mission_l2_products_folder : str | None, optional
         Optional folder path where to search for the mission L2 products. If not provided, the script will use the value specified in the config file. Format example: /path/%Y/%(dayOfYear)/*%Y%m%d_%H%M*.nc
+    listing_filter : str | None, optional
+        Path to a listing containing path to files. This filters the other files it is possible to co-locate with. Default is None.
     """
 
     def __init__(
@@ -104,11 +108,17 @@ class GenerateColoc:
         self.ds_name = kwargs.get("ds_name", None)
         self.input_ds = kwargs.get("input_ds", None)
 
+        # Listing filter to restrict the files considered for co-location.
+        # Used in self.get_all_comparison_files
+        listing_filter = Path(kwargs["listing_filter"]) if "listing_filter" in kwargs else None
+        # self.listing_filter_line can be None.
+        self.listing_filter_lines = read_listing_lines(listing_filter)
+
         # Load config, to add overrides given as input args.
         config_data = load_config()
 
         # Add the mission products folder to the config if it is given as an argument.
-        # It will be used in the function `get_all_comparison_files` to search for the products to compare with.
+        # It will be used in the function `self.get_comparison_files` to search for the products to compare with.
         mission_products_folder = kwargs.get("mission_products_folder", None)
         if mission_products_folder is not None:
             if config_data["paths"] is None:
@@ -362,9 +372,17 @@ class GenerateColoc:
                 for comparison_file in all_comparison_files
                 if os.path.realpath(os.path.abspath(comparison_file)) != product1_path
             ]
-            logger.debug(
+            logger.info(
                 f"Found {len(all_comparison_files)} file candidates for coloc based on dates in filenames."
             )
+            # if listing filter has been provided, filter
+            if self.listing_filter_lines is not None:
+                all_comparison_files = [
+                    f for f in all_comparison_files if Path(f).resolve() in self.listing_filter_lines
+                ]
+                logger.info(
+                    f"After applying listing filter, {len(all_comparison_files)} file candidates remain."
+                )
             str_allcomp_files = "\n".join(all_comparison_files)
             logger.debug(f"File list : {str_allcomp_files}")
             return all_comparison_files

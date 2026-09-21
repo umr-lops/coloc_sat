@@ -1145,5 +1145,12 @@ def compute_colocated_data(
     return colocated_data_1, colocated_data_2
 
 
+def read_listing_lines(listing_path: Path):
+    if listing_path is None:
+        return None
+    with open(listing_path, "r") as f:
+        return [Path(line.strip()).resolve() for line in f.readlines()]
+
+
 from coloc_sat.hy2_meta import GetHy2Meta
 from coloc_sat.ascat_meta import GetAscatMeta

@@ -124,6 +124,13 @@ def main():
         type=str,
         help="Configuration file to use instead of the " "default one.",
     )
+    parser.add_argument(
+        "--listing-filter",
+        nargs="?",
+        type=str,
+        default=None,
+        help="Path to a listing containing path to files. This filters the other files it is possible to co-locate with.",
+    )
     parser.add_argument("--debug", action="store_true", default=False)
     parser.add_argument("-v", "--version", action="store_true", help="Print version")
 
