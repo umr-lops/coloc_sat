@@ -145,7 +145,7 @@ def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=No
     flatten_lat = ds[acquisition.latitude_name].data.flatten()
     mpt_coords = [
         (lon, lat)
-        for lon, lat in product(flatten_lon, flatten_lat)
+        for lon, lat in zip(flatten_lon, flatten_lat)
         if not (math.isnan(lon) or math.isnan(lat))
     ]
     # Antimeridian fix: if the valid longitudes span more than 180° the points straddle
