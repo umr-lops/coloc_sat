@@ -5,7 +5,9 @@ logger = logging.getLogger(__name__)
 import numpy as np
 import pyproj
 from shapely import MultiPolygon
-from shapely.geometry import Polygon, MultiPoint, LineString, Point
+from shapely.affinity import translate
+from shapely.geometry import Polygon, MultiPoint, LineString, Point, box
+from shapely.ops import unary_union
 from itertools import product
 import math
 from affine import Affine
@@ -86,6 +88,13 @@ def get_polygon_area_in_km_squared(polygon):
     if isinstance(polygon, str):
         polygon = convert_str_to_polygon(polygon)
 
+    # Antimeridian fix: a polygon in the continuous 0-360 frame (lon > 180) would be wrapped
+    # back to -180/180 by the projection, and a polygon crossing 180 would span the whole
+    # world. The area does not depend on longitude (x is linear in longitude), so shift the
+    # polygon into -180/180 before projecting.
+    if not polygon.is_empty and polygon.bounds[2] > 180:
+        polygon = translate(polygon, xoff=-180)
+
     # Define the projection for converting latitude/longitude to meters (EPSG:4326 -> EPSG:3857)
     proj = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
@@ -109,6 +118,42 @@ def get_polygon_area_in_km_squared(polygon):
     area_in_square_km = area_in_square_meters / 1e6
 
     return area_in_square_km
+
+
+def to_lon360(geometry):
+    """
+    Express a geometry in the 0-360 longitude frame: the part with negative longitudes is
+    shifted by +360. A geometry with no negative longitude is returned unchanged.
+    """
+    if geometry.is_empty or geometry.bounds[0] >= 0:
+        return geometry
+    return unary_union(
+        [
+            geometry.intersection(box(0, -90, 360, 90)),
+            translate(geometry.intersection(box(-180, -90, 0, 90)), xoff=360),
+        ]
+    )
+
+
+def same_longitude_frame(*geometries):
+    """
+    Express geometries in the same longitude frame before comparing them (intersects,
+    intersection...).
+
+    A footprint crossing the antimeridian is given in the continuous 0-360 frame (e.g. 174 to
+    180.4, as `xsar` footprints or `get_footprint_from_ll_ds`), the other products in -180/180.
+    Shapely works on a plane: a geometry at -179 and one at 181 do not intersect. If any
+    geometry goes beyond 180, all of them are expressed in 0-360. Otherwise they are returned
+    unchanged.
+
+    Returns
+    -------
+    tuple
+        The geometries, in the same order.
+    """
+    if not any((not g.is_empty) and g.bounds[2] > 180 for g in geometries):
+        return geometries
+    return tuple(to_lon360(g) for g in geometries)
 
 
 def get_footprint_from_ll_ds(acquisition, ds=None, start_date=None, stop_date=None):
