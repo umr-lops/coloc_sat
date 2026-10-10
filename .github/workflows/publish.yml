@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up micromamba
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-name: build-env
           create-args: >-
