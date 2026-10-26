@@ -14,6 +14,7 @@ from .intersection_tools import (
     are_dimensions_empty,
     get_footprint_from_ll_ds,
     get_polygon_area_in_km_squared,
+    same_longitude_frame,
     get_transform,
     get_common_points,
     get_nearest_time_datasets,
@@ -108,8 +109,8 @@ class ProductIntersection:
 
         if hasattr(self.meta1, "footprint") and hasattr(self.meta2, "footprint"):
             if self.meta1.footprint and self.meta2.footprint:
-                fp1 = self.meta1.footprint
-                fp2 = self.meta2.footprint
+                # same longitude frame if one footprint crosses the antimeridian (0-360)
+                fp1, fp2 = same_longitude_frame(self.meta1.footprint, self.meta2.footprint)
                 is_intersected = fp1.intersects(fp2)
                 if is_intersected:
                     self.fill_common_footprint(fp1.intersection(fp2))
@@ -118,8 +119,7 @@ class ProductIntersection:
         if (self.meta1.acquisition_type == "truncated_grid") and (
             self.meta2.acquisition_type == "truncated_grid"
         ):
-            fp1 = self.meta1.footprint
-            fp2 = self.meta2.footprint
+            fp1, fp2 = same_longitude_frame(self.meta1.footprint, self.meta2.footprint)
             is_intersected = fp1.intersects(fp2)
             if is_intersected:
                 self.fill_common_footprint(fp1.intersection(fp2))
@@ -386,10 +386,11 @@ class ProductIntersection:
                 poly = get_footprint_from_ll_ds(daily, _ds)
                 logger.debug(f"[verify_intersection] daily footprint bounds : {poly.bounds}")
                 logger.debug(f"[verify_intersection] SAR   footprint bounds : {fp.bounds}")
-                is_intersected = poly.intersects(fp)
+                poly_frame, fp_frame = same_longitude_frame(poly, fp)
+                is_intersected = poly_frame.intersects(fp_frame)
                 logger.debug(f"[verify_intersection] geometries intersect   : {is_intersected}")
                 if is_intersected:
-                    intersection_geom = poly.intersection(fp)
+                    intersection_geom = poly_frame.intersection(fp_frame)
                     self.fill_common_footprint(intersection_geom)
                     logger.debug(f"[verify_intersection] intersection bounds    : {intersection_geom.bounds}")
                 result = self._is_considered_as_intersected
@@ -492,9 +493,13 @@ class ProductIntersection:
                     ds_scat = open_acquisition.dataset
                     # Find the scatterometer points that are within the sar swath bounding box
                     min_lon, min_lat, max_lon, max_lat = polygon.bounds
+                    scat_lon = ds_scat[lon_name]
+                    if max_lon > 180:
+                        # footprint crossing the antimeridian, in 0-360: compare in 0-360
+                        scat_lon = scat_lon % 360
                     condition = (
-                        (ds_scat[lon_name] > min_lon)
-                        & (ds_scat[lon_name] < max_lon)
+                        (scat_lon > min_lon)
+                        & (scat_lon < max_lon)
                         & (ds_scat[lat_name] > min_lat)
                         & (ds_scat[lat_name] < max_lat)
                     )
@@ -533,6 +538,7 @@ class ProductIntersection:
                 # Verify if a part of this multipoint can be intersected with the truncated swath footprint
                 return mpt.intersects(footprint)"""
                 poly = get_footprint_from_ll_ds(swath_acquisition, _ds)
+                poly, footprint = same_longitude_frame(poly, footprint)
                 is_intersected = poly.intersects(footprint)
                 if is_intersected:
                     self.fill_common_footprint(poly.intersection(footprint))
@@ -587,9 +593,13 @@ class ProductIntersection:
                     ds_scat = open_acquisition.dataset
                     # Find the scatterometer points that are within the sar swath bounding box
                     min_lon, min_lat, max_lon, max_lat = polygon.bounds
+                    scat_lon = ds_scat[lon_name]
+                    if max_lon > 180:
+                        # footprint crossing the antimeridian, in 0-360: compare in 0-360
+                        scat_lon = scat_lon % 360
                     condition = (
-                        (ds_scat[lon_name] > min_lon)
-                        & (ds_scat[lon_name] < max_lon)
+                        (scat_lon > min_lon)
+                        & (scat_lon < max_lon)
                         & (ds_scat[lat_name] > min_lat)
                         & (ds_scat[lat_name] < max_lat)
                     )
@@ -628,6 +638,7 @@ class ProductIntersection:
                 # Verify if a part of this multipoint can be intersected with the truncated swath footprint
                 return mpt.intersects(footprint)"""
                 poly = get_footprint_from_ll_ds(swath_acquisition, _ds)
+                poly, footprint = same_longitude_frame(poly, footprint)
                 is_intersected = poly.intersects(footprint)
                 if is_intersected:
                     self.fill_common_footprint(poly.intersection(footprint))
@@ -924,12 +935,21 @@ class ProductIntersection:
             data_vars_2[n] = ds2[n].astype("float64").values
 
         polyg_coords = np.array(self.common_footprint.exterior.coords)
+        # Antimeridian fix: a common footprint crossing 180 is in 0-360, the datasets in
+        # -180/180; filter in 0-360, then put the reduced longitudes back in -180/180
+        # (haversine distances do not depend on the frame).
+        crosses_antimeridian = self.common_footprint.bounds[2] > 180
         data_1_reduced, lon_1_reduced, lat_1_reduced = filter_data_polygon(
-            lon_1, lat_1, data_vars_1, polyg_coords
+            lon_1 % 360 if crosses_antimeridian else lon_1, lat_1, data_vars_1, polyg_coords
         )
         data_2_reduced, lon_2_reduced, lat_2_reduced = filter_data_polygon(
-            lon_2, lat_2, data_vars_2, polyg_coords
+            lon_2 % 360 if crosses_antimeridian else lon_2, lat_2, data_vars_2, polyg_coords
         )
+        if crosses_antimeridian:
+            if lon_1_reduced is not None:
+                lon_1_reduced = (lon_1_reduced + 180) % 360 - 180
+            if lon_2_reduced is not None:
+                lon_2_reduced = (lon_2_reduced + 180) % 360 - 180
 
         if lon_1_reduced is None or lon_2_reduced is None:
             raise ValueError(
@@ -1394,6 +1414,7 @@ class ProductIntersection:
         def poly_common_zone():
             fp1 = convert_str_to_polygon(dataset1.attrs["footprint_1"])
             fp2 = convert_str_to_polygon(dataset2.attrs["footprint_2"])
+            fp1, fp2 = same_longitude_frame(fp1, fp2)
             return str(fp1.intersection(fp2))
 
         def ws_analysis_attributes():

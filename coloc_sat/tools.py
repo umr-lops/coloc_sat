@@ -530,8 +530,9 @@ def correct_dataset(dataset, lon_name="lon"):
 
     lon = dataset[lon_name]
     if cross_antemeridian(dataset):
-        lon = (lon + 180) % 360
-    dataset = dataset.assign_coords(**{lon_name: lon - 180})
+        lon = (lon + 180) % 360 - 180
+
+    dataset = dataset.assign_coords(**{lon_name: lon})
     if dataset[lon_name].ndim == 1:
         dataset = dataset.sortby(lon_name)
     return dataset
